@@ -384,7 +384,7 @@ unsigned char bcxx_set_AT_CFUN(unsigned char cmd)
     bcxx_wait_mode(CMD_MODE);
     bcxx_clear_rx_cmd_buffer();
 	printf("AT+CFUN=%d\r\n",cmd);
-    if(bcxx_wait_cmd2("OK",TIMEOUT_90S) == RECEIVED)
+    if(bcxx_wait_cmd1(TIMEOUT_90S) == RECEIVED)
     {
         if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
             ret = 1;
@@ -742,6 +742,29 @@ unsigned char bcxx_set_AT_NSOFT(unsigned char socket, char *ip,char *port,unsign
 					ret = strlen((char *)outbuf);
 				}
 			}
+		}
+    }
+    bcxx_mode = NET_MODE;
+#ifdef BCXX_PRINTF_RX_BUF
+	bcxx_print_rx_buf();
+#endif
+    return ret;
+}
+
+//从模块获取时间
+unsigned char bcxx_get_AT_CCLK(char *buf)
+{
+	unsigned char ret = 0;
+    bcxx_wait_mode(CMD_MODE);
+    bcxx_clear_rx_cmd_buffer();
+	printf("AT+CCLK?\r\n");
+    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
+    {
+        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "+CCLK:") != -1)
+		{
+			get_str1((unsigned char *)bcxx_rx_cmd_buf, "+CCLK:", 1, "\r\n\r\nOK", 1, (unsigned char *)buf);
+
+			ret = 1;
 		}
     }
     bcxx_mode = NET_MODE;

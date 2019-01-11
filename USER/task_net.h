@@ -25,6 +25,7 @@ void vTaskNET(void *pvParameters);
 s8 OnServerHandle(void);
 void SendSensorDataToIOTPlatform(void);
 u8 SyncDataTimeFormNTPServer(u8 *time_flag);
+u8 SyncDataTimeFormBcxxModule(u8 *time_flag);
 
 
 

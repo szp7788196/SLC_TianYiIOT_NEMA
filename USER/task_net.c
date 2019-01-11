@@ -131,9 +131,10 @@ void SendSensorDataToIOTPlatform(void)
 		sensor_data_len = UnPackSensorData(p_tSensorMsgNet,sensor_buf);
 		send_len = PackNetData(0xAA,sensor_buf,sensor_data_len,send_buf);
 	}
-	else if(GetTimeOK == 0 && ConnectState == ON_SERVER && Operators != 2)	//发送对时请求,电信卡无法使用NTP
+	else if(GetTimeOK == 0 && ConnectState == ON_SERVER)	//发送对时请求,电信卡无法使用NTP
 	{
-		SyncDataTimeFormNTPServer(&GetTimeOK);
+//		SyncDataTimeFormNTPServer(&GetTimeOK);
+		SyncDataTimeFormBcxxModule(&GetTimeOK);
 	}
 
 	if(send_len >= 1)
@@ -196,7 +197,41 @@ u8 SyncDataTimeFormNTPServer(u8 *time_flag)
 	return ret;
 }
 
+//从指定的NTP服务器获取时间
+u8 SyncDataTimeFormBcxxModule(u8 *time_flag)
+{
+	u8 ret = 0;
+	struct tm tm_time;
+	time_t time_s = 0;
+	char buf[32];
 
+	if(*time_flag != 1)
+	{
+		memset(buf,0,32);
+
+		if(bcxx_get_AT_CCLK(buf))
+		{
+			tm_time.tm_year = 2000 + (buf[0] - 0x30) * 10 + buf[1] - 0x30 - 1900;
+			tm_time.tm_mon = (buf[3] - 0x30) * 10 + buf[4] - 0x30 - 1;
+			tm_time.tm_mday = (buf[6] - 0x30) * 10 + buf[7] - 0x30;
+
+			tm_time.tm_hour = (buf[9] - 0x30) * 10 + buf[10] - 0x30;
+			tm_time.tm_min = (buf[12] - 0x30) * 10 + buf[13] - 0x30;
+			tm_time.tm_sec = (buf[15] - 0x30) * 10 + buf[16] - 0x30;
+
+			time_s = mktime(&tm_time);
+
+			time_s += 28800;
+
+			SyncTimeFromNet(time_s);
+
+			*time_flag = 1;
+			ret = 1;
+		}
+	}
+
+	return ret;
+}
 
 
 

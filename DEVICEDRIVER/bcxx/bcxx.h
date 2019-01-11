@@ -145,6 +145,7 @@ unsigned char	bcxx_set_AT_NNMI(unsigned char cmd);
 unsigned char	bcxx_set_AT_CGATT(unsigned char cmd);
 unsigned char   bcxx_get_AT_CGPADDR(char **ip);
 unsigned char	bcxx_set_AT_NMGS(unsigned int len,char *buf);
+unsigned char	bcxx_get_AT_CCLK(char *buf);
 
 unsigned char	bcxx_set_AT_NSCOR(char *type, char *protocol,char *port);
 unsigned char	bcxx_set_AT_NSOCL(unsigned char socket);
