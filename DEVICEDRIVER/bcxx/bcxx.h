@@ -153,6 +153,7 @@ unsigned char 	bcxx_set_AT_NSOFT(unsigned char socket, char *ip,char *port,unsig
 unsigned char 	bcxx_set_AT_NSOCO(unsigned char socket, char *ip,char *port);
 unsigned char 	bcxx_set_AT_NSOSD(unsigned char socket, unsigned int len,char *inbuf,char *outbuf);
 
+
 unsigned char 	bcxx_set_AT_OPEN(char *type, char *addr, char *port);
 unsigned char 	bcxx_set_AT_CLOSE(void);
 unsigned char 	bcxx_set_AT_SEND(unsigned char *buffer, unsigned int len);

@@ -40,7 +40,7 @@ void vTaskMAIN(void *pvParameters)
 			InventrSetLightLevel(LightLevelPercent);
 		}
 
-		if(GetSysTick1s() - times_sync >= 3600)				//每隔1h同步一次时间
+		if(GetSysTick1s() - times_sync >= 14400)				//每隔1h同步一次时间
 		{
 			times_sync = GetSysTick1s();
 

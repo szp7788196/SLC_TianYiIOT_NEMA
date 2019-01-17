@@ -511,7 +511,6 @@ u16 SetUpdateFirmWareInfo(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 	return out_len;
 }
 
-
 //解析NTP报文
 u8 NTP_TimeSync(u16 head,u8 *inbuf)
 {
