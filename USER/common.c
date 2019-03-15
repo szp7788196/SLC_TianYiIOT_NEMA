@@ -42,7 +42,7 @@ u8 *DeviceID = NULL;				//设备ID
 u8 *DeviceUUID = NULL;				//设备UUID
 
 /***************************网络相关*********************************/
-u8 Operators = 0;					//运营商编号
+u8 Operators = 1;					//运营商编号 0:移动 1:联通 2:电信
 u8 *APName = NULL;					//私有APN，不同客户APN不同
 u8 *ServerDomain = NULL;			//服务器域名
 u8 *ServerIP = NULL;				//服务器IP地址
@@ -51,7 +51,7 @@ u8 *LocalIp = NULL;					//本地IP地址
 
 /***************************运行参数相关*****************************/
 u16 UpLoadINCL = 20;				//数据上传时间间隔0~65535秒
-u8 PowerINTFC = 2;					//电源控制接口编号 0:0~10V  1:PWM  2:UART
+u8 PowerINTFC = 0;					//电源控制接口编号 0:0~10V  1:PWM  2:UART
 u8 TimeZone = 8;					//时区偏移量
 
 /***************************其他*****************************/
@@ -935,7 +935,7 @@ u8 ReadUpLoadINVL(void)
 
 	if(ret)
 	{
-		UpLoadINCL = (((u16)HoldReg[UPLOAD_INVL_ADD + 0]) << 8) + (u16)HoldReg[UPLOAD_INVL_ADD +1] & 0x00FF;
+		UpLoadINCL = (((u16)HoldReg[UPLOAD_INVL_ADD + 0]) << 8) + (u16)HoldReg[UPLOAD_INVL_ADD + 1];
 
 		if(UpLoadINCL > MAX_UPLOAD_INVL)
 		{
@@ -961,7 +961,7 @@ u8 ReadPowerINTFCC(void)
 		}
 		else
 		{
-			PowerINTFC = 2;
+			PowerINTFC = 0;
 		}
 	}
 

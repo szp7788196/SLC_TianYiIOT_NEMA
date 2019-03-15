@@ -68,6 +68,8 @@ void bcxx_init(void)
 		}
 
 		bcxx_hard_init();
+		
+		hard_inited = 1;
 	}
 
 	RE_HARD_RESET:
@@ -84,16 +86,16 @@ void bcxx_init(void)
 	bcxx_mode = NET_MODE;
 	bcxx_last_time = GetSysTick1ms();
 
-	fail_time = 0;
-	while(!bcxx_set_AT())
-	{
-		fail_time ++;
-		if(fail_time >= 3)
-		{
-			goto RE_HARD_RESET;
-		}
-	}
-	delay_ms(100);
+//	fail_time = 0;
+//	while(!bcxx_set_AT())
+//	{
+//		fail_time ++;
+//		if(fail_time >= 3)
+//		{
+//			goto RE_HARD_RESET;
+//		}
+//	}
+//	delay_ms(100);
 
 	fail_time = 0;
 	while(!bcxx_set_AT_ATE(0))
@@ -118,7 +120,7 @@ void bcxx_init(void)
 	delay_ms(100);
 
 	fail_time = 0;
-	while(!bcxx_set_AT_NBAND(Operators))
+	while(!bcxx_set_AT_NBAND(2))
 	{
 		fail_time ++;
 		if(fail_time >= 3)
@@ -173,6 +175,28 @@ void bcxx_init(void)
 	delay_ms(100);
 
 	fail_time = 0;
+	while(!bcxx_set_AT_CEDRXS(0))
+	{
+		fail_time ++;
+		if(fail_time >= 3)
+		{
+			goto RE_HARD_RESET;
+		}
+	}
+	delay_ms(100);
+	
+	fail_time = 0;
+	while(!bcxx_set_AT_CPSMS(0))
+	{
+		fail_time ++;
+		if(fail_time >= 3)
+		{
+			goto RE_HARD_RESET;
+		}
+	}
+	delay_ms(100);
+
+	fail_time = 0;
 	while(!bcxx_set_AT_CSCON(0))
 	{
 		fail_time ++;
@@ -185,6 +209,17 @@ void bcxx_init(void)
 
 	fail_time = 0;
 	while(!bcxx_set_AT_CEREG(4))
+	{
+		fail_time ++;
+		if(fail_time >= 3)
+		{
+			goto RE_HARD_RESET;
+		}
+	}
+	delay_ms(100);
+	
+	fail_time = 0;
+	while(!bcxx_set_AT_QREGSWT(1))
 	{
 		fail_time ++;
 		if(fail_time >= 3)
@@ -571,6 +606,68 @@ unsigned char bcxx_set_AT_CGATT(unsigned char cmd)
     bcxx_clear_rx_cmd_buffer();
 	printf("AT+CGATT=%d\r\n",cmd);
     if(bcxx_wait_cmd2("OK",TIMEOUT_2S) == RECEIVED)
+    {
+        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
+            ret = 1;
+        else
+            ret = 0;
+    }
+    bcxx_mode = NET_MODE;
+#ifdef BCXX_PRINTF_RX_BUF
+	bcxx_print_rx_buf();
+#endif
+    return ret;
+}
+
+unsigned char bcxx_set_AT_QREGSWT(unsigned char cmd)
+{
+	unsigned char ret = 0;
+    bcxx_wait_mode(CMD_MODE);
+    bcxx_clear_rx_cmd_buffer();
+	printf("AT+QREGSWT=%d\r\n",cmd);
+    if(bcxx_wait_cmd2("OK",TIMEOUT_2S) == RECEIVED)
+    {
+        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
+            ret = 1;
+        else
+            ret = 0;
+    }
+    bcxx_mode = NET_MODE;
+#ifdef BCXX_PRINTF_RX_BUF
+	bcxx_print_rx_buf();
+#endif
+    return ret;
+}
+
+//设置eDRX开关
+unsigned char bcxx_set_AT_CEDRXS(unsigned char cmd)
+{
+	unsigned char ret = 0;
+    bcxx_wait_mode(CMD_MODE);
+    bcxx_clear_rx_cmd_buffer();
+	printf("AT+CEDRXS=%d,5\r\n",cmd);
+    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
+    {
+        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
+            ret = 1;
+        else
+            ret = 0;
+    }
+    bcxx_mode = NET_MODE;
+#ifdef BCXX_PRINTF_RX_BUF
+	bcxx_print_rx_buf();
+#endif
+    return ret;
+}
+
+//设置PMS开关
+unsigned char bcxx_set_AT_CPSMS(unsigned char cmd)
+{
+	unsigned char ret = 0;
+    bcxx_wait_mode(CMD_MODE);
+    bcxx_clear_rx_cmd_buffer();
+	printf("AT+CPSMS=%d\r\n",cmd);
+    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
     {
         if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
             ret = 1;

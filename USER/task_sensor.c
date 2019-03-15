@@ -28,7 +28,7 @@ void vTaskSENSOR(void *pvParameters)
 
 	while(1)
 	{
-		if(GetSysTick1s() - times_sec >= UpLoadINCL)		//每隔UpLoadINCL秒向网络任务推送一次传感器数据
+		if(GetSysTick1s() - times_sec >= 15)		//每隔UpLoadINCL秒向网络任务推送一次传感器数据
 		{
 			times_sec = GetSysTick1s();
 			push_data_to_net = 1;

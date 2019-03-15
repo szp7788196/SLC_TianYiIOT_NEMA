@@ -3,6 +3,7 @@
 #include "usart.h"
 #include "24cxx.h"
 #include "common.h"
+#include "task_net.h"
 
 
 //读取/处理网络数据
@@ -49,51 +50,55 @@ u16 NetDataAnalysis(u8 *buf,u16 len,u8 *outbuf,u8 *hold_reg)
 	u8 message_id = 0;
 	u16 mid = 0;
 	u8 temp_buf[2];
-	
+
 	StrToHex(&message_id, (char *)buf, 1);
 	StrToHex(temp_buf, (char *)(buf + 2), 2);
 	mid = (((u16)temp_buf[0]) << 8) + (u16)temp_buf[1];
-	
+
 	switch(message_id)
 	{
 		case 0xAA:			//解析响应包
 			ret = UnPackAckPacket(buf,len);
 		break;
-		
+
 		case 0xAB:			//调光
 			ret = ControlLightLevel(message_id,mid,buf,len,outbuf);
 		break;
-		
+
 		case 0xAC:			//对时
 			ret = GetTimeDateFromServer(message_id,mid,buf,len,outbuf);
 		break;
-		
+
 		case 0xAD:			//设定策略
 			ret = SetRegularTimeGroups(message_id,mid,buf,len,outbuf);
 		break;
-		
+
 		case 0xAE:			//重启
 			ret = ControlDeviceReset(message_id,mid,buf,len,outbuf);
 		break;
-		
+
 		case 0xAF:			//修改上传间隔
 			ret = SetDeviceUpLoadINCL(message_id,mid,buf,len,outbuf);
 		break;
-		
+
 		case 0xB0:			//设置工作模式
 			ret = SetDeviceWorkMode(message_id,mid,buf,len,outbuf);
 		break;
-		
+
 		case 0xB1:			//设置电源接口
 			ret = SetDevicePowerIntfc(message_id,mid,buf,len,outbuf);
 		break;
-		
+
 		case 0xB2:			//OTA
 			ret = SetUpdateFirmWareInfo(message_id,mid,buf,len,outbuf);
 		break;
 		
+		case 0xB4:			//设定/读取UUID
+			ret = Set_GetDeviceUUID(message_id,mid,buf,len,outbuf);
+		break;
+
 		default:
-			
+
 		break;
 	}
 
@@ -110,6 +115,13 @@ u8 UnPackAckPacket(u8 *buf,u8 len)
 		if(MyStrstr(buf, "AAAA0000", len, 8) != 0xFFFF)
 		{
 			ConnectState = ON_SERVER;
+
+			ret = 0;
+		}
+		else if(MyStrstr(buf, "AAAA0001", len, 8) != 0xFFFF)
+		{
+			SendDeviceUUID_OK = 1;
+			ConnectState = ON_SERVER;
 			
 			ret = 0;
 		}
@@ -119,11 +131,11 @@ u8 UnPackAckPacket(u8 *buf,u8 len)
 }
 
 //ACK打包
-u16 PackAckPacket(u8 message_id,u8 *data,u8 *outbuf)
+u16 PackAckPacket(u8 message_id,u8 *data,u8 data_len,u8 *outbuf)
 {
 	u16 len = 0;
 
-	len = PackNetData(message_id,data,4,outbuf);
+	len = PackNetData(message_id,data,data_len,outbuf);
 
 	return len;
 }
@@ -161,7 +173,7 @@ u16 ControlLightLevel(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 		data_buf[2] = 2;
 	}
 
-	out_len = PackAckPacket(message_id,data_buf,outbuf);
+	out_len = PackAckPacket(message_id,data_buf,4,outbuf);
 
 	return out_len;
 }
@@ -179,7 +191,7 @@ u16 ControlDeviceReset(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 	if(len == 8)
 	{
 		StrToHex(&reset, (char *)(buf + 6), 1);
-		
+
 		if(reset == 0x01)
 		{
 			NeedToReset = 1;
@@ -194,7 +206,7 @@ u16 ControlDeviceReset(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 		data_buf[2] = 2;
 	}
 
-	out_len = PackAckPacket(message_id,data_buf,outbuf);
+	out_len = PackAckPacket(message_id,data_buf,4,outbuf);
 
 	return out_len;
 }
@@ -213,8 +225,8 @@ u16 SetDeviceUpLoadINCL(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 	if(len == 10)
 	{
 		StrToHex(incl, (char *)(buf + 6), 2);
-		up_load_incl = (((u16)incl[0]) << 8) + (u16)incl[1];	
-		
+		up_load_incl = (((u16)incl[0]) << 8) + (u16)incl[1];
+
 		if(up_load_incl <= MAX_UPLOAD_INVL)
 		{
 			UpLoadINCL = up_load_incl;
@@ -232,7 +244,7 @@ u16 SetDeviceUpLoadINCL(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 		data_buf[2] = 2;
 	}
 
-	out_len = PackAckPacket(message_id,data_buf,outbuf);
+	out_len = PackAckPacket(message_id,data_buf,4,outbuf);
 
 	return out_len;
 }
@@ -255,16 +267,16 @@ u16 SetRegularTimeGroups(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 	{
 		memset(temp_buf,0,64);
 		memset(time_group,0,64);
-		
+
 		StrToHex(temp_buf, (char *)(buf + 6), 52 / 2);
-		
+
 		for(i = 0; i < 26; i ++)
 		{
 			temp_buf[i] -= 0x30;
 		}
-		
+
 		group_num = temp_buf[0] * 10 + temp_buf[1];
-		
+
 		if(group_num <= MAX_GROUP_NUM)
 		{
 			time_group[0] = temp_buf[2];												//type
@@ -274,7 +286,7 @@ u16 SetRegularTimeGroups(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 			time_group[4] = temp_buf[9] * 10 + temp_buf[10];							//hour
 			time_group[5] = temp_buf[11] * 10 + temp_buf[12];							//minute
 			time_group[6] = temp_buf[23] * 100 + temp_buf[24] * 10 + temp_buf[25];		//percent
-			
+
 			time_group[9] = temp_buf[2];												//type
 			time_group[10] = temp_buf[13] * 10 + temp_buf[14];							//year
 			time_group[11] = temp_buf[15] * 10 + temp_buf[16];							//month
@@ -282,15 +294,15 @@ u16 SetRegularTimeGroups(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 			time_group[13] = temp_buf[19] * 10 + temp_buf[20];							//hour
 			time_group[14] = temp_buf[21] * 10 + temp_buf[22];							//minute
 			time_group[15] = temp_buf[23] * 100 + temp_buf[24] * 10 + temp_buf[25];		//percent
-			
+
 			crc16 = CRC16(&time_group[0],7);
 			time_group[7] = (u8)(crc16 >> 8);
 			time_group[8] = (u8)(crc16 & 0x00FF);
-			
+
 			crc16 = CRC16(&time_group[9],7);
 			time_group[16] = (u8)(crc16 >> 8);
 			time_group[17] = (u8)(crc16 & 0x00FF);
-			
+
 
 			RegularTimeStruct[group_num].type 		= time_group[0];
 
@@ -322,7 +334,7 @@ u16 SetRegularTimeGroups(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 		data_buf[2] = 2;
 	}
 
-	out_len = PackAckPacket(message_id,data_buf,outbuf);
+	out_len = PackAckPacket(message_id,data_buf,4,outbuf);
 
 	return out_len;
 }
@@ -356,7 +368,7 @@ u16 SetDeviceWorkMode(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 		data_buf[2] = 2;
 	}
 
-	out_len = PackAckPacket(message_id,data_buf,outbuf);
+	out_len = PackAckPacket(message_id,data_buf,4,outbuf);
 
 	return out_len;
 }
@@ -381,14 +393,14 @@ u16 GetTimeDateFromServer(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 	if(len == 30)												//数据长度必须是64
 	{
 		memset(temp_buf,0,13);
-		
+
 		StrToHex(temp_buf, (char *)(buf + 6), 12);
-		
+
 		for(i = 0; i < 12; i ++)
 		{
 			temp_buf[i] -= 0x30;
 		}
-		
+
 		year = temp_buf[0] * 10 + temp_buf[1];
 		mon  = temp_buf[2] * 10 + temp_buf[3];
 		day  = temp_buf[4] * 10 + temp_buf[5];
@@ -412,7 +424,7 @@ u16 GetTimeDateFromServer(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 		data_buf[2] = 2;
 	}
 
-	out_len = PackAckPacket(message_id,data_buf,outbuf);
+	out_len = PackAckPacket(message_id,data_buf,4,outbuf);
 
 	return out_len;
 }
@@ -449,7 +461,7 @@ u16 SetDevicePowerIntfc(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 		data_buf[2] = 2;
 	}
 
-	out_len = PackAckPacket(message_id,data_buf,outbuf);
+	out_len = PackAckPacket(message_id,data_buf,4,outbuf);
 
 	return out_len;
 }
@@ -467,9 +479,9 @@ u16 SetUpdateFirmWareInfo(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 	if(len == 16)
 	{
 		memset(temp_buf,0,11);
-		
+
 		StrToHex(temp_buf, (char *)(buf + 6), 5);
-		
+
 		NewFirmWareVer    = (((u16)temp_buf[0]) << 8) + (u16)temp_buf[1];
 		NewFirmWareBagNum = (((u16)temp_buf[2]) << 8) + (u16)temp_buf[3];
 		LastBagByteNum    = *(temp_buf + 4);
@@ -506,7 +518,55 @@ u16 SetUpdateFirmWareInfo(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 		data_buf[1] = 2;
 	}
 
-	out_len = PackAckPacket(message_id,data_buf,outbuf);
+	out_len = PackAckPacket(message_id,data_buf,4,outbuf);
+
+	return out_len;
+}
+
+//设定/读取UUID
+u16 Set_GetDeviceUUID(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
+{
+	u8 out_len = 0;
+	u8 cmd = 0;
+	u8 temp_buf[40];
+	u8 data_buf[40];
+
+	data_buf[0] = (u8)(mid >> 8);
+	data_buf[1] = (u8)mid;
+
+	if(len == 80)
+	{
+		memset(temp_buf,0,40);
+		memset(&data_buf[2],0,38);
+
+		StrToHex(temp_buf, (char *)(buf + 6), 37);
+		
+		cmd = temp_buf[0];
+		
+		if(cmd <= 1)
+		{
+			if(cmd == 1)
+			{
+				memcpy(&HoldReg[UU_ID_ADD],&temp_buf[1],UU_ID_LEN - 2);
+
+				GetDeviceUUID();
+
+				WriteDataFromHoldBufToEeprom(&HoldReg[UU_ID_ADD],UU_ID_ADD, UU_ID_LEN - 2);
+			}
+			
+			memcpy(&data_buf[3],&HoldReg[UU_ID_ADD],UU_ID_LEN - 2);
+		}
+		else
+		{
+			data_buf[2] = 2;
+		}
+	}
+	else
+	{
+		data_buf[2] = 2;
+	}
+
+	out_len = PackAckPacket(message_id,data_buf,3 + UU_ID_LEN - 2,outbuf);
 
 	return out_len;
 }
@@ -516,8 +576,8 @@ u8 NTP_TimeSync(u16 head,u8 *inbuf)
 {
 	u8 ret = 0;
 //	u8 get_time = 0xAA;
-	
-	int y = 1900; 
+
+	int y = 1900;
 	int mon;
 	int d;
 	int h;
@@ -529,24 +589,24 @@ u8 NTP_TimeSync(u16 head,u8 *inbuf)
 	u8 li = (u8) ((*(inbuf + 0) >> 6) & 0x3);
 //	u8 ver = (u8) ((*(inbuf + 0) >> 3) & 0x7);
 //	u8 mode = (u8) (*(inbuf + 0) & 0x7);
-	
+
 	u32 highWord = (u32)(((u16)(*(inbuf + 40))) << 8) + (*(inbuf + 41));
-	
+
 	u32 lowWord = (u32)(((u16)(*(inbuf + 42))) << 8) + (*(inbuf + 43));
 // combine the four bytes (two words) into a long integer
 // this is NTP time (seconds since Jan 1 1900):
 	unsigned long secsSince1900 = highWord << 16 | lowWord;
-	
+
 	u32 highWord1 = (u32)(((u16)(*(inbuf + 32))) << 8) + (*(inbuf + 33));
-	
+
 	u32 lowWord1 = (u32)(((u16)(*(inbuf + 34))) << 8) + (*(inbuf + 35));
-	
+
 	unsigned long secsSince19001 = highWord1 << 16 | lowWord1;
-	
+
 	unsigned long secs = secsSince1900 + 8 * 3600L;
-	
+
 //	Serial.println("  LI=" + String(li) + "; version=" + String(ver) + "; mode=" + String(mode));
-	
+
 	if((secsSince1900 != secsSince19001) || secsSince1900 == 0 || secsSince19001 == 0)
 	{
 #ifdef DEBUG_LOG
@@ -554,7 +614,7 @@ u8 NTP_TimeSync(u16 head,u8 *inbuf)
 #endif
 		return ret;
 	}
-	
+
 	if(li == (u8)11)
 	{
 #ifdef DEBUG_LOG
@@ -563,7 +623,7 @@ u8 NTP_TimeSync(u16 head,u8 *inbuf)
 		//ÈòÃë Ö±½Ó·µ»Ø
 		return ret;
 	}
-	
+
 //	wk = (secs / 86400L) % 7 + 1; //86400 is secons in one day; +1 for 1900/1/1 is Monday
 
 	do
@@ -587,7 +647,7 @@ u8 NTP_TimeSync(u16 head,u8 *inbuf)
 		}
 	}
 	while(1);
-	
+
 	if((y % 4 == 0 && y % 100 != 0) || y % 400 == 0)
 	{
 		mons[1] = 29;
@@ -611,9 +671,9 @@ u8 NTP_TimeSync(u16 head,u8 *inbuf)
 	secs = secs % 3600;
 	m = secs / 60;
 	s = secs % 60;
-	
+
 	RTC_Set(y,mon + 1,d,h,m,s);
-	
+
 //	if(GetNTPSyncTimeState() == 0)
 //	{
 //		if(xQueueSend(xQueue_Time,(void *)&get_time,(TickType_t)10) != pdPASS)

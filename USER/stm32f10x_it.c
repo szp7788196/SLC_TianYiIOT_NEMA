@@ -1,6 +1,6 @@
 /**
   ******************************************************************************
-  * @file    GPIO/IOToggle/stm32f10x_it.c 
+  * @file    GPIO/IOToggle/stm32f10x_it.c
   * @author  MCD Application Team
   * @version V3.5.0
   * @date    08-April-2011
@@ -22,7 +22,7 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32f10x_it.h" 
+#include "stm32f10x_it.h"
 
 
 void NMI_Handler(void)
@@ -32,9 +32,9 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
   /* Go to infinite loop when Hard Fault exception occurs */
-	
-//	__disable_fault_irq();
-//	NVIC_SystemReset();
+
+	__disable_fault_irq();
+	NVIC_SystemReset();
 	if(CoreDebug->DHCSR & 1)
 	{
 		__breakpoint(0);
@@ -43,7 +43,7 @@ void HardFault_Handler(void)
 	{
 	}
 }
- 
+
 void MemManage_Handler(void)
 {
   /* Go to infinite loop when Memory Manage exception occurs */
@@ -52,7 +52,7 @@ void MemManage_Handler(void)
   }
 }
 
- 
+
 void BusFault_Handler(void)
 {
   /* Go to infinite loop when Bus Fault exception occurs */
@@ -60,7 +60,7 @@ void BusFault_Handler(void)
   {
   }
 }
- 
+
 void UsageFault_Handler(void)
 {
   /* Go to infinite loop when Usage Fault exception occurs */
@@ -68,19 +68,19 @@ void UsageFault_Handler(void)
   {
   }
 }
- 
+
 //void SVC_Handler(void)
 //{
 //}
- 
+
 void DebugMon_Handler(void)
 {
 }
- 
+
 //void PendSV_Handler(void)
 //{
 //}
- 
+
 //void SysTick_Handler(void)
 //{
 //}

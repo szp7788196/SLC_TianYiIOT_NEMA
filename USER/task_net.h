@@ -18,6 +18,7 @@ typedef struct
 extern TaskHandle_t xHandleTaskNET;
 extern SensorMsg_S *p_tSensorMsgNet;
 
+extern u8 SendDeviceUUID_OK;			//发送UUID成功标识
 extern u8 SignalIntensity;				//bg96的信号强度
 
 
