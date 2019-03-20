@@ -93,7 +93,7 @@ u16 NetDataAnalysis(u8 *buf,u16 len,u8 *outbuf,u8 *hold_reg)
 			ret = SetUpdateFirmWareInfo(message_id,mid,buf,len,outbuf);
 		break;
 		
-		case 0xB4:			//设定/读取UUID
+		case 0xB3:			//设定/读取UUID
 			ret = Set_GetDeviceUUID(message_id,mid,buf,len,outbuf);
 		break;
 
@@ -112,13 +112,13 @@ u8 UnPackAckPacket(u8 *buf,u8 len)
 
 	if(len == 8)
 	{
-		if(MyStrstr(buf, "AAAA0000", len, 8) != 0xFFFF)
+		if(MyStrstr(buf, "AAAA0001", len, 8) != 0xFFFF)
 		{
 			ConnectState = ON_SERVER;
 
 			ret = 0;
 		}
-		else if(MyStrstr(buf, "AAAA0001", len, 8) != 0xFFFF)
+		else if(MyStrstr(buf, "AAAA0000", len, 8) != 0xFFFF)
 		{
 			SendDeviceUUID_OK = 1;
 			ConnectState = ON_SERVER;
@@ -528,18 +528,18 @@ u16 Set_GetDeviceUUID(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 {
 	u8 out_len = 0;
 	u8 cmd = 0;
-	u8 temp_buf[40];
-	u8 data_buf[40];
+	u8 temp_buf[20];
+	u8 data_buf[20];
 
 	data_buf[0] = (u8)(mid >> 8);
 	data_buf[1] = (u8)mid;
 
-	if(len == 80)
+	if(len == 42)
 	{
-		memset(temp_buf,0,40);
-		memset(&data_buf[2],0,38);
+		memset(temp_buf,0,20);
+		memset(&data_buf[2],0,20);
 
-		StrToHex(temp_buf, (char *)(buf + 6), 37);
+		StrToHex(temp_buf, (char *)(buf + 6), 18);
 		
 		cmd = temp_buf[0];
 		

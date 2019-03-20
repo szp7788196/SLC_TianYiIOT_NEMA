@@ -785,17 +785,17 @@ u8 ReadDeviceUUID(void)
 	{
 		GetDeviceUUID();
 	}
-//	else
-//	{
-//		if(DeviceUUID == NULL)
-//		{
-//			DeviceUUID = (u8 *)mymalloc(sizeof(u8) * 65);
-//		}
+	else
+	{
+		if(DeviceUUID == NULL)
+		{
+			DeviceUUID = (u8 *)mymalloc(sizeof(u8) * UU_ID_LEN);
+		}
 
-//		memset(DeviceUUID,0,65);
+		memset(DeviceUUID,0,UU_ID_LEN);
 
-//		sprintf((char *)DeviceUUID, "000000000000000000000000000000000000");
-//	}
+		sprintf((char *)DeviceUUID, "00000000000000000");
+	}
 
 	return ret;
 }

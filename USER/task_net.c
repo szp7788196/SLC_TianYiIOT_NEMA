@@ -100,6 +100,11 @@ s8 OnServerHandle(void)
 
 	if(len > 0)
 	{
+		if(len % 2 != 0)
+		{
+			len = len;
+		}
+		
 		len = bcxx_set_AT_NMGS(len / 2,(char *)out_buf);
 	}
 	else if(len < 0)
@@ -145,13 +150,18 @@ void SendSensorDataToIOTPlatform(void)
 			{
 				times_sec = GetSysTick1s();
 				
-				send_len = PackNetData(0xB3,DeviceUUID,UU_ID_LEN - 2,send_buf);
+				send_len = PackNetData(0xA9,DeviceUUID,UU_ID_LEN - 2,send_buf);
 			}
 		}
 	}
 
 	if(send_len >= 1)
 	{
+		if(send_len % 2 != 0)
+		{
+			send_len = send_len;
+		}
+		
 		send_len = bcxx_set_AT_NMGS(send_len / 2,(char *)send_buf);
 	}
 }

@@ -89,7 +89,7 @@
 #define DEVICE_ID_LEN				8
 
 #define UU_ID_ADD					55			//UUID存储地址
-#define UU_ID_LEN					38
+#define UU_ID_LEN					19
 
 #define OPERATORS_ADD				151			//运营商编号存储地址
 #define OPERATORS_LEN				3

@@ -506,7 +506,7 @@ u8 AT_CommandDEVID(u8 cmd_id,u8 *inbuf,u16 inbuf_len,u8 *respbuf)
 			{
 				CopyStrToPointer(&DeviceID, content_hex,content_str_len / 2);
 				
-				memcpy(&HoldReg[DEVICE_ID_ADD],content_hex,DEVICE_ID_ADD - 2);
+				memcpy(&HoldReg[DEVICE_ID_ADD],content_hex,DEVICE_ID_LEN - 2);
 				
 				WriteDataFromHoldBufToEeprom(&HoldReg[DEVICE_ID_ADD],DEVICE_ID_ADD, DEVICE_ID_LEN - 2);
 				
@@ -522,7 +522,7 @@ u8 AT_CommandDEVID(u8 cmd_id,u8 *inbuf,u16 inbuf_len,u8 *respbuf)
 u8 AT_CommandUUID(u8 cmd_id,u8 *inbuf,u16 inbuf_len,u8 *respbuf)
 {
 	u8 ret = 1;
-	u8 content[37];
+	u8 content[UU_ID_LEN];
 	u8 content_len = 0;
 
 	if(inbuf_len == AT_CommandBuf[cmd_id].len + 3 + 2)
@@ -539,17 +539,17 @@ u8 AT_CommandUUID(u8 cmd_id,u8 *inbuf,u16 inbuf_len,u8 *respbuf)
 	}
 	else if(MyStrstr(inbuf, (u8 *)"=\"", inbuf_len, 2) != 0xFFFF)
 	{
-		memset(content,0,37);
+		memset(content,0,UU_ID_LEN);
 		
 		if(get_str1(inbuf, "\"", 1, "\"", 2, content))
 		{
 			content_len = strlen((char *)content);
 			
-			if(content_len == 36)
+			if(content_len == UU_ID_LEN - 2)
 			{
 				CopyStrToPointer(&DeviceUUID, content,content_len);
 				
-				memcpy(&HoldReg[UU_ID_ADD],content,UU_ID_ADD - 2);
+				memcpy(&HoldReg[UU_ID_ADD],content,UU_ID_LEN - 2);
 				
 				WriteDataFromHoldBufToEeprom(&HoldReg[UU_ID_ADD],UU_ID_ADD, UU_ID_LEN - 2);
 				
@@ -581,7 +581,7 @@ u8 AT_CommandOPERATORS(u8 cmd_id,u8 *inbuf,u16 inbuf_len,u8 *respbuf)
 		{
 			Operators = content;
 			
-			memcpy(&HoldReg[OPERATORS_ADD],&Operators,OPERATORS_ADD - 2);
+			memcpy(&HoldReg[OPERATORS_ADD],&Operators,OPERATORS_LEN - 2);
 				
 			WriteDataFromHoldBufToEeprom(&HoldReg[OPERATORS_ADD],OPERATORS_ADD, OPERATORS_LEN - 2);
 			
@@ -623,7 +623,7 @@ u8 AT_CommandAPN(u8 cmd_id,u8 *inbuf,u16 inbuf_len,u8 *respbuf)
 			{
 				CopyStrToPointer(&APName, &content[1],content[0]);
 				
-				memcpy(&HoldReg[APN_ADD],content,APN_ADD - 2);
+				memcpy(&HoldReg[APN_ADD],content,APN_LEN - 2);
 				
 				WriteDataFromHoldBufToEeprom(&HoldReg[APN_ADD],APN_ADD, APN_LEN - 2);
 				
@@ -668,7 +668,7 @@ u8 AT_CommandDOMAIN(u8 cmd_id,u8 *inbuf,u16 inbuf_len,u8 *respbuf)
 				
 				memcpy(&HoldReg[SERVER_DOMAIN_ADD],content,SERVER_DOMAIN_ADD - 2);
 				
-				WriteDataFromHoldBufToEeprom(&HoldReg[SERVER_DOMAIN_ADD],SERVER_DOMAIN_ADD, SERVER_DOMAIN_LEN - 2);
+				WriteDataFromHoldBufToEeprom(&HoldReg[SERVER_DOMAIN_ADD],SERVER_DOMAIN_LEN, SERVER_DOMAIN_LEN - 2);
 				
 				ret = 0;
 			}
@@ -710,7 +710,7 @@ u8 AT_CommandIPADDRESS(u8 cmd_id,u8 *inbuf,u16 inbuf_len,u8 *respbuf)
 				
 				memcpy(&HoldReg[SERVER_IP_ADD],content,SERVER_IP_ADD - 2);
 				
-				WriteDataFromHoldBufToEeprom(&HoldReg[SERVER_IP_ADD],SERVER_IP_ADD, SERVER_IP_LEN - 2);
+				WriteDataFromHoldBufToEeprom(&HoldReg[SERVER_IP_ADD],SERVER_IP_LEN, SERVER_IP_LEN - 2);
 				
 				ret = 0;
 			}
@@ -752,7 +752,7 @@ u8 AT_CommandPORT(u8 cmd_id,u8 *inbuf,u16 inbuf_len,u8 *respbuf)
 				
 				memcpy(&HoldReg[SERVER_PORT_ADD],content,SERVER_PORT_ADD - 2);
 				
-				WriteDataFromHoldBufToEeprom(&HoldReg[SERVER_PORT_ADD],SERVER_PORT_ADD, SERVER_PORT_LEN - 2);
+				WriteDataFromHoldBufToEeprom(&HoldReg[SERVER_PORT_ADD],SERVER_PORT_LEN, SERVER_PORT_LEN - 2);
 				
 				ret = 0;
 			}
@@ -797,7 +797,7 @@ u8 AT_CommandINCL(u8 cmd_id,u8 *inbuf,u16 inbuf_len,u8 *respbuf)
 					content_str[0] = (u8)(UpLoadINCL >> 8);
 					content_str[1] = (u8)(UpLoadINCL & 0x00FF);
 					
-					memcpy(&HoldReg[UPLOAD_INVL_ADD],content_str,UPLOAD_INVL_ADD - 2);
+					memcpy(&HoldReg[UPLOAD_INVL_ADD],content_str,UPLOAD_INVL_LEN - 2);
 				
 					WriteDataFromHoldBufToEeprom(&HoldReg[UPLOAD_INVL_ADD],UPLOAD_INVL_ADD, UPLOAD_INVL_LEN - 2);
 					
@@ -830,7 +830,7 @@ u8 AT_CommandINTFC(u8 cmd_id,u8 *inbuf,u16 inbuf_len,u8 *respbuf)
 		{
 			PowerINTFC = content;
 			
-			memcpy(&HoldReg[POWER_INTFC_ADD],&PowerINTFC,POWER_INTFC_ADD - 2);
+			memcpy(&HoldReg[POWER_INTFC_ADD],&PowerINTFC,POWER_INTFC_LEN - 2);
 				
 			WriteDataFromHoldBufToEeprom(&HoldReg[POWER_INTFC_ADD],POWER_INTFC_ADD, POWER_INTFC_LEN - 2);
 			
@@ -871,7 +871,7 @@ u8 AT_CommandTIMEOFFSET(u8 cmd_id,u8 *inbuf,u16 inbuf_len,u8 *respbuf)
 				{
 					TimeZone = content_int;
 					
-					memcpy(&HoldReg[TIME_ZONE_ADD],&TimeZone,TIME_ZONE_ADD - 2);
+					memcpy(&HoldReg[TIME_ZONE_ADD],&TimeZone,TIME_ZONE_LEN - 2);
 				
 					WriteDataFromHoldBufToEeprom(&HoldReg[TIME_ZONE_ADD],TIME_ZONE_ADD, TIME_ZONE_LEN - 2);
 					
@@ -916,7 +916,7 @@ u8 AT_CommandPERCENT(u8 cmd_id,u8 *inbuf,u16 inbuf_len,u8 *respbuf)
 					
 					DeviceWorkMode = MODE_MANUAL;		//强制转换为手动模式
 					
-					memcpy(&HoldReg[LIGHT_LEVEL_ADD],&LightLevelPercent,LIGHT_LEVEL_ADD - 2);
+					memcpy(&HoldReg[LIGHT_LEVEL_ADD],&LightLevelPercent,LIGHT_LEVEL_LEN - 2);
 				
 					WriteDataFromHoldBufToEeprom(&HoldReg[LIGHT_LEVEL_ADD],LIGHT_LEVEL_ADD, LIGHT_LEVEL_LEN - 2);
 					
