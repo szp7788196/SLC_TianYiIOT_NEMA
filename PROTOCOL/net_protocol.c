@@ -309,20 +309,52 @@ u16 SetRegularTimeGroups(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 			time_group[5] = temp_buf[11] * 10 + temp_buf[12];							//minute
 			time_group[6] = temp_buf[13] * 100 + temp_buf[14] * 10 + temp_buf[15];		//percent
 
-			crc16 = CRC16(&time_group[0],7);
-			time_group[7] = (u8)(crc16 >> 8);
-			time_group[8] = (u8)(crc16 & 0x00FF);
+			if(time_group[0] != 0)
+			{
+				pRegularTime tmp_time = NULL;
+				
+				tmp_time = (pRegularTime)mymalloc(sizeof(RegularTime_S));
 
+				tmp_time->prev = NULL;
+				tmp_time->next = NULL;
+				
+				crc16 = CRC16(&time_group[0],7);
+				time_group[7] = (u8)(crc16 >> 8);
+				time_group[8] = (u8)(crc16 & 0x00FF);
 
-			RegularTimeStruct[group_num].type 		= time_group[0];
-
-			RegularTimeStruct[group_num].year 		= time_group[1];
-			RegularTimeStruct[group_num].month 		= time_group[2];
-			RegularTimeStruct[group_num].date 		= time_group[3];
-			RegularTimeStruct[group_num].hour 		= time_group[4];
-			RegularTimeStruct[group_num].minute 	= time_group[5];
-			RegularTimeStruct[group_num].percent 	= time_group[6];
-
+				tmp_time->number	= group_num;
+				tmp_time->type 		= time_group[0];
+				tmp_time->year 		= time_group[1];
+				tmp_time->month 	= time_group[2];
+				tmp_time->date 		= time_group[3];
+				tmp_time->hour 		= time_group[4];
+				tmp_time->minute 	= time_group[5];
+				tmp_time->percent 	= time_group[6];
+				
+				switch(tmp_time->type)
+				{
+					case TYPE_WEEKDAY:
+						RegularTimeGroupAdd(TYPE_WEEKDAY,tmp_time);
+					break;
+					
+					case TYPE_WEEKEND:
+						RegularTimeGroupAdd(TYPE_WEEKEND,tmp_time);
+					break;
+					
+					case TYPE_HOLIDAY:
+						RegularTimeGroupAdd(TYPE_HOLIDAY,tmp_time);
+					break;
+					
+					default:
+						
+					break;
+				}
+			}
+			else
+			{
+				RegularTimeGroupSub(group_num);
+			}
+			
 			for(i = 0; i < TIME_RULE_LEN; i ++)
 			{
 				AT24CXX_WriteOneByte(TIME_RULE_ADD + group_num * TIME_RULE_LEN + i,time_group[i]);
