@@ -48,9 +48,14 @@
 
 #define SOFT_WARE_VRESION			101			//软件版本号
 
-#define SMALLER_BOARD							//单灯控制器PCB板类型
+#define DEVICE_TYPE					'C'			//设备类型
 
 #define DEBUG_LOG								//是否打印调试信息
+
+#define INTFC_0_10V					0			//0~10V调光
+#define INTFC_PWM					1			//PWM调光
+#define INTFC_DIGIT					2			//数字调光
+#define INTFC_DALI					3			//DALI调光
 
 #define MAX_FW_VER					9999
 #define MAX_FW_BAG_NUM				896
@@ -63,7 +68,7 @@
 
 #define MAX_UPLOAD_INVL				65500
 
-#define INIT_LIGHT_LEVEL			0
+#define INIT_LIGHT_LEVEL			100
 
 #define TYPE_WEEKDAY				0x01
 #define TYPE_WEEKEND				0x02
@@ -90,6 +95,12 @@
 
 #define UU_ID_ADD					55			//UUID存储地址
 #define UU_ID_LEN					19
+
+#define ICC_ID_ADD					74			//ICCID存储地址
+#define ICC_ID_LEN					22
+
+#define IMSI_ID_ADD					96			//IMSI存储地址
+#define IMSI_ID_LEN					17
 
 #define OPERATORS_ADD				151			//运营商编号存储地址
 #define OPERATORS_LEN				3
@@ -119,13 +130,14 @@
 #define LIGHT_LEVEL_LEN				3
 
 #define OTA_INFO_ADD				301			//OTA信息存储地址
-#define OTA_INFO_LEN				9
+#define OTA_INFO_LEN				10
 
 #define FIRM_WARE_FLAG_S_ADD		301			//新固件标识存储地址
-#define FIRM_WARE_STORE_ADD_S_ADD	302			//新固件Flash地址存储地址
-#define FIRM_WARE_VER_S_ADD			303			//新固件版本号存储地址
-#define FIRM_WARE_BAG_NUM_S_ADD		305			//新固件总包数存储地址
-#define LAST_BAG_BYTE_NUM_S_ADD		307			//新固件末包字节数存储地址
+#define FIRM_WARE_TYPE_S_ADD		302			//新固件类型存储地址
+#define FIRM_WARE_STORE_ADD_S_ADD	303			//新固件Flash地址存储地址
+#define FIRM_WARE_VER_S_ADD			304			//新固件版本号存储地址
+#define FIRM_WARE_BAG_NUM_S_ADD		306			//新固件总包数存储地址
+#define LAST_BAG_BYTE_NUM_S_ADD		308			//新固件末包字节数存储地址
 
 #define TIME_GROUP_NUM_ADD			361			//策略组数存储地址
 #define TIME_GROUP_NUM_LEN			3
@@ -140,20 +152,12 @@ struct RegularTime
 {
 	u8 type;			//策略类别Bit0:1 工作日 Bit1:1 周末 Bit2:1节日
 
-	u8 s_year;
-	u8 s_month;
-	u8 s_date;
-	u8 s_hour;
-	u8 s_minute;
-	time_t s_seconds;
+	u8 year;
+	u8 month;
+	u8 date;
+	u8 hour;
+	u8 minute;
 
-	u8 e_year;
-	u8 e_month;
-	u8 e_date;
-	u8 e_hour;
-	u8 e_minute;
-	time_t e_seconds;
-	
 	u8 percent;
 
 	RegularTime_S *prev;
@@ -327,6 +331,8 @@ extern u8 *HardWareVersion;				//硬件版本号
 extern u8 *DeviceName;					//设备名称
 extern u8 *DeviceID;					//设备ID
 extern u8 *DeviceUUID;					//设备UUID
+extern u8 *DeviceICCID;					//ICCID
+extern u8 *DeviceIMSI;					//IMSI
 
 /***************************网络相关*********************************/
 extern u8 Operators;					//运营商编号
@@ -384,6 +390,8 @@ u8 CopyStrToPointer(u8 **pointer, u8 *str, u8 len);
 u8 GetDeviceName(void);
 u8 GetDeviceID(void);
 u8 GetDeviceUUID(void);
+u8 GetDeviceICCID(void);
+u8 GetDeviceIMSI(void);
 u8 GetAPN(void);
 u8 GetServerDomain(void);
 u8 GetServerIP(void);
@@ -395,6 +403,8 @@ u8 ReadHardWareVersion(void);
 u8 ReadDeviceName(void);
 u8 ReadDeviceID(void);
 u8 ReadDeviceUUID(void);
+u8 ReadDeviceICCID(void);
+u8 ReadDeviceIMSI(void);
 u8 ReadOperators(void);
 u8 ReadAPN(void);
 u8 ReadServerDomain(void);

@@ -35,11 +35,6 @@ u16 Set_GetDeviceUUID(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf);
 
 
 
-u8 NTP_TimeSync(u16 head,u8 *inbuf);
-
-
-
-
 
 
 

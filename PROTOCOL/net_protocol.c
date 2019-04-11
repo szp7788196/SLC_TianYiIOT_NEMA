@@ -4,38 +4,60 @@
 #include "24cxx.h"
 #include "common.h"
 #include "task_net.h"
+#include "error.h"
+#include "utils.h"
 
 
 //读取/处理网络数据
 u16 time_out = 0;
 s16 NetDataFrameHandle(u8 *outbuf,u8 *hold_reg)
 {
+	u16 i = 0;
 	s16 ret = 0;
 	u16 len = 0;
-//	static u16 time_out = 0;
-	u8 buf[1500];
+	u8 buf[1024];
+	u8 *msg = NULL;
+	char tmp[10];
 
-	memset(buf,0,1500);
-
-	len = bcxx_read(buf);
-
-	if(len != 0)
+	memset(buf,0,1024);
+	
+	ret = nbiot_udp_recv(buf,(size_t *)&len);
+	
+	if(ret == NBIOT_ERR_OK)
 	{
-		time_out = 0;
-
-		ret = (s16)NetDataAnalysis(buf,len,outbuf,hold_reg);
-
-		memset(buf,0,len);
-	}
-	else
-	{
-		time_out ++;
-
-		if(time_out >= 600)		//一分钟内未收到任何数据，强行关闭连接
+		if(len != 0)
 		{
 			time_out = 0;
+			
+			msg = (u8 *)strstr((char *)buf,":");
+			
+			if(msg == NULL)
+				return ret;
 
-			ret = -1;
+			msg = msg + 1;
+			
+			memset(tmp,0,10);
+			
+			while(*msg != ',')
+				tmp[i ++] = *(msg ++);
+			
+			tmp[i] = '\0';
+			len = nbiot_atoi(tmp,strlen(tmp)) * 2;
+			
+			msg = msg + 1;
+
+			ret = (s16)NetDataAnalysis(msg,len,outbuf,hold_reg);
+		}
+		else
+		{
+			time_out ++;
+
+			if(time_out >= 600)		//一分钟内未收到任何数据，强行关闭连接
+			{
+				time_out = 0;
+
+				ret = -1;
+			}
 		}
 	}
 
@@ -58,7 +80,7 @@ u16 NetDataAnalysis(u8 *buf,u16 len,u8 *outbuf,u8 *hold_reg)
 	switch(message_id)
 	{
 		case 0xAA:			//解析响应包
-			ret = UnPackAckPacket(buf,len);
+			UnPackAckPacket(buf,len);
 		break;
 
 		case 0xAB:			//调光
@@ -255,22 +277,22 @@ u16 SetRegularTimeGroups(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 	u8 out_len = 0;
 	u8 group_num = 0;
 	u16 i = 0;
-	u8 temp_buf[64];
-	u8 time_group[64];
+	u8 temp_buf[32];
+	u8 time_group[32];
 	u16 crc16 = 0;
 	u8 data_buf[4] = {0,0,0,0};
 
 	data_buf[0] = (u8)(mid >> 8);
 	data_buf[1] = (u8)mid;
 
-	if(len == 58)
+	if(len == 38)
 	{
-		memset(temp_buf,0,64);
-		memset(time_group,0,64);
+		memset(temp_buf,0,32);
+		memset(time_group,0,32);
 
-		StrToHex(temp_buf, (char *)(buf + 6), 52 / 2);
+		StrToHex(temp_buf, (char *)(buf + 6), 32 / 2);
 
-		for(i = 0; i < 26; i ++)
+		for(i = 0; i < 16; i ++)
 		{
 			temp_buf[i] -= 0x30;
 		}
@@ -285,47 +307,25 @@ u16 SetRegularTimeGroups(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 			time_group[3] = temp_buf[7] * 10 + temp_buf[8];								//date
 			time_group[4] = temp_buf[9] * 10 + temp_buf[10];							//hour
 			time_group[5] = temp_buf[11] * 10 + temp_buf[12];							//minute
-			time_group[6] = temp_buf[23] * 100 + temp_buf[24] * 10 + temp_buf[25];		//percent
-
-			time_group[9] = temp_buf[2];												//type
-			time_group[10] = temp_buf[13] * 10 + temp_buf[14];							//year
-			time_group[11] = temp_buf[15] * 10 + temp_buf[16];							//month
-			time_group[12] = temp_buf[17] * 10 + temp_buf[18];							//date
-			time_group[13] = temp_buf[19] * 10 + temp_buf[20];							//hour
-			time_group[14] = temp_buf[21] * 10 + temp_buf[22];							//minute
-			time_group[15] = temp_buf[23] * 100 + temp_buf[24] * 10 + temp_buf[25];		//percent
+			time_group[6] = temp_buf[13] * 100 + temp_buf[14] * 10 + temp_buf[15];		//percent
 
 			crc16 = CRC16(&time_group[0],7);
 			time_group[7] = (u8)(crc16 >> 8);
 			time_group[8] = (u8)(crc16 & 0x00FF);
 
-			crc16 = CRC16(&time_group[9],7);
-			time_group[16] = (u8)(crc16 >> 8);
-			time_group[17] = (u8)(crc16 & 0x00FF);
-
 
 			RegularTimeStruct[group_num].type 		= time_group[0];
 
-			RegularTimeStruct[group_num].s_year 	= time_group[1];
-			RegularTimeStruct[group_num].s_month 	= time_group[2];
-			RegularTimeStruct[group_num].s_date 	= time_group[3];
-			RegularTimeStruct[group_num].s_hour 	= time_group[4];
-			RegularTimeStruct[group_num].s_minute 	= time_group[5];
-
+			RegularTimeStruct[group_num].year 		= time_group[1];
+			RegularTimeStruct[group_num].month 		= time_group[2];
+			RegularTimeStruct[group_num].date 		= time_group[3];
+			RegularTimeStruct[group_num].hour 		= time_group[4];
+			RegularTimeStruct[group_num].minute 	= time_group[5];
 			RegularTimeStruct[group_num].percent 	= time_group[6];
 
-			RegularTimeStruct[group_num].e_year 	= time_group[10];
-			RegularTimeStruct[group_num].e_month 	= time_group[11];
-			RegularTimeStruct[group_num].e_date 	= time_group[12];
-			RegularTimeStruct[group_num].e_hour 	= time_group[13];
-			RegularTimeStruct[group_num].e_minute 	= time_group[14];
-
-			RegularTimeStruct[group_num].s_seconds  = RegularTimeStruct[group_num].s_hour * 3600 + RegularTimeStruct[group_num].s_minute * 60;
-			RegularTimeStruct[group_num].e_seconds  = RegularTimeStruct[group_num].e_hour * 3600 + RegularTimeStruct[group_num].e_minute * 60;
-
-			for(i = 0; i < 18; i ++)				//每组7个字节+2个字节(CRC16)
+			for(i = 0; i < TIME_RULE_LEN; i ++)
 			{
-				AT24CXX_WriteOneByte(TIME_RULE_ADD + group_num * 18 + i,time_group[i]);
+				AT24CXX_WriteOneByte(TIME_RULE_ADD + group_num * TIME_RULE_LEN + i,time_group[i]);
 			}
 		}
 	}
@@ -510,7 +510,7 @@ u16 SetUpdateFirmWareInfo(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 
 			WriteOTAInfo(HoldReg,0);		//将数据写入EEPROM
 
-//			NeedToReset = 1;				//重新启动
+			NeedToReset = 1;				//重新启动
 		}
 	}
 	else
@@ -569,125 +569,6 @@ u16 Set_GetDeviceUUID(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 	out_len = PackAckPacket(message_id,data_buf,3 + UU_ID_LEN - 2,outbuf);
 
 	return out_len;
-}
-
-//解析NTP报文
-u8 NTP_TimeSync(u16 head,u8 *inbuf)
-{
-	u8 ret = 0;
-//	u8 get_time = 0xAA;
-
-	int y = 1900;
-	int mon;
-	int d;
-	int h;
-	int m;
-	int s;
-//	int wk;
-	int mons[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
-	unsigned long ys;
-	u8 li = (u8) ((*(inbuf + 0) >> 6) & 0x3);
-//	u8 ver = (u8) ((*(inbuf + 0) >> 3) & 0x7);
-//	u8 mode = (u8) (*(inbuf + 0) & 0x7);
-
-	u32 highWord = (u32)(((u16)(*(inbuf + 40))) << 8) + (*(inbuf + 41));
-
-	u32 lowWord = (u32)(((u16)(*(inbuf + 42))) << 8) + (*(inbuf + 43));
-// combine the four bytes (two words) into a long integer
-// this is NTP time (seconds since Jan 1 1900):
-	unsigned long secsSince1900 = highWord << 16 | lowWord;
-
-	u32 highWord1 = (u32)(((u16)(*(inbuf + 32))) << 8) + (*(inbuf + 33));
-
-	u32 lowWord1 = (u32)(((u16)(*(inbuf + 34))) << 8) + (*(inbuf + 35));
-
-	unsigned long secsSince19001 = highWord1 << 16 | lowWord1;
-
-	unsigned long secs = secsSince1900 + 8 * 3600L;
-
-//	Serial.println("  LI=" + String(li) + "; version=" + String(ver) + "; mode=" + String(mode));
-
-	if((secsSince1900 != secsSince19001) || secsSince1900 == 0 || secsSince19001 == 0)
-	{
-#ifdef DEBUG_LOG
-		UsartSendString(USART1,"ntp sync time err.\r\n",20);
-#endif
-		return ret;
-	}
-
-	if(li == (u8)11)
-	{
-#ifdef DEBUG_LOG
-		UsartSendString(USART1,"ntp sync time li = 11.\r\n",24);
-#endif
-		//ÈòÃë Ö±½Ó·µ»Ø
-		return ret;
-	}
-
-//	wk = (secs / 86400L) % 7 + 1; //86400 is secons in one day; +1 for 1900/1/1 is Monday
-
-	do
-	{
-		if(( y % 4 == 0 && y % 100 != 0) || y % 400 == 0)
-		{
-			ys = 31622400L; //31622400 = 366 * 24 * 3600;
-		}
-		else
-		{
-			ys = 31536000L;  // 31536000 = 365 * 24 * 3600;
-		}
-		if(secs < ys)
-		{
-			break;
-		}
-		else
-		{
-			secs -= ys;
-			y++;
-		}
-	}
-	while(1);
-
-	if((y % 4 == 0 && y % 100 != 0) || y % 400 == 0)
-	{
-		mons[1] = 29;
-	}
-	for(mon=0; mon < 12; mon ++)
-	{
-		if(secs < mons[mon] * 86400L)
-		{
-			break;
-		}
-		else
-		{
-			secs -= mons[mon] * 86400L;
-		}
-	}
-
-	d = secs / 86400L + 1; //86400 = 24 * 3600 = how many seconds in a day
-	secs = secs % 86400L;
-
-	h = secs / 3600;
-	secs = secs % 3600;
-	m = secs / 60;
-	s = secs % 60;
-
-	RTC_Set(y,mon + 1,d,h,m,s);
-
-//	if(GetNTPSyncTimeState() == 0)
-//	{
-//		if(xQueueSend(xQueue_Time,(void *)&get_time,(TickType_t)10) != pdPASS)
-//		{
-//#ifdef DEBUG_LOG
-//			UsartSendString(USART1,"send xQueue fail g.\r\n",21);
-//#endif
-//		}
-//	}
-	ret = 1;
-#ifdef DEBUG_LOG
-	UsartSendString(USART1,"ntp sync time success.\r\n",24);
-#endif
-	return ret;
 }
 
 

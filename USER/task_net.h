@@ -2,6 +2,7 @@
 #define __TASK_NET_H
 
 #include "sys.h"
+#include "common.h"
 #include "rtos_task.h"
 #include "bcxx.h"
 #include "task_sensor.h"
@@ -18,15 +19,15 @@ typedef struct
 extern TaskHandle_t xHandleTaskNET;
 extern SensorMsg_S *p_tSensorMsgNet;
 
+extern CONNECT_STATE_E ConnectState;
 extern u8 SendDeviceUUID_OK;			//发送UUID成功标识
 extern u8 SignalIntensity;				//bg96的信号强度
 
 
 void vTaskNET(void *pvParameters);
 s8 OnServerHandle(void);
-void SendSensorDataToIOTPlatform(void);
-u8 SyncDataTimeFormNTPServer(u8 *time_flag);
-u8 SyncDataTimeFormBcxxModule(u8 *time_flag);
+s8 SendSensorDataToIOTPlatform(void);
+u8 SyncDataTimeFormBcxxModule(time_t sync_cycle);
 
 
 

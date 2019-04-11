@@ -4,6 +4,7 @@
 #include "led.h"
 #include "rtc.h"
 #include "usart.h"
+#include "usart2.h"
 
 u16 i = 0;
 u8 eepbuf[256];
@@ -13,7 +14,7 @@ RCC_ClocksTypeDef RCC_Clocks;
 
 int main(void)
 {
-//	SCB->VTOR = FLASH_BASE | 0x08000; /* Vector Table Relocation in Internal FLASH. */
+//	SCB->VTOR = FLASH_BASE | 0x24000; /* Vector Table Relocation in Internal FLASH. */
 //	IWDG_Init(IWDG_Prescaler_128,625);	//128分频 312.5HZ 625为2秒
 
 	RCC_GetClocksFreq(&RCC_Clocks);		//查看各个总线的时钟频率

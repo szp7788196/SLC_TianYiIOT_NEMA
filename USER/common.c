@@ -40,6 +40,8 @@ u8 *HardWareVersion = NULL;			//硬件版本号
 u8 *DeviceName = NULL;				//设备名称
 u8 *DeviceID = NULL;				//设备ID
 u8 *DeviceUUID = NULL;				//设备UUID
+u8 *DeviceICCID = NULL;				//ICCID
+u8 *DeviceIMSI = NULL;				//IMSI
 
 /***************************网络相关*********************************/
 u8 Operators = 1;					//运营商编号 0:移动 1:联通 2:电信
@@ -50,7 +52,7 @@ u8 *ServerPort = NULL;				//服务器端口号
 u8 *LocalIp = NULL;					//本地IP地址
 
 /***************************运行参数相关*****************************/
-u16 UpLoadINCL = 20;				//数据上传时间间隔0~65535秒
+u16 UpLoadINCL = 300;				//数据上传时间间隔0~65535秒
 u8 PowerINTFC = 0;					//电源控制接口编号 0:0~10V  1:PWM  2:UART
 u8 TimeZone = 8;					//时区偏移量
 
@@ -598,6 +600,26 @@ u8 GetDeviceUUID(void)
 	return ret;
 }
 
+//获取设备ICCID
+u8 GetDeviceICCID(void)
+{
+	u8 ret = 0;
+
+	ret = GetMemoryForString(&DeviceICCID, 2, 0, ICC_ID_ADD, ICC_ID_LEN - 2, HoldReg);
+
+	return ret;
+}
+
+//获取设备IMSI
+u8 GetDeviceIMSI(void)
+{
+	u8 ret = 0;
+
+	ret = GetMemoryForString(&DeviceIMSI, 2, 0, IMSI_ID_ADD, IMSI_ID_LEN - 2, HoldReg);
+
+	return ret;
+}
+
 //获取APN
 u8 GetAPN(void)
 {
@@ -795,6 +817,58 @@ u8 ReadDeviceUUID(void)
 		memset(DeviceUUID,0,UU_ID_LEN);
 
 		sprintf((char *)DeviceUUID, "00000000000000000");
+	}
+
+	return ret;
+}
+
+//读取设备ICCID
+u8 ReadDeviceICCID(void)
+{
+	u8 ret = 0;
+
+	ret = ReadDataFromEepromToHoldBuf(HoldReg,ICC_ID_ADD, ICC_ID_LEN);
+
+	if(ret)
+	{
+		GetDeviceICCID();
+	}
+	else
+	{
+		if(DeviceICCID == NULL)
+		{
+			DeviceICCID = (u8 *)mymalloc(sizeof(u8) * ICC_ID_LEN);
+		}
+
+		memset(DeviceICCID,0,ICC_ID_LEN);
+
+		sprintf((char *)DeviceICCID, "00000000000000000000");
+	}
+
+	return ret;
+}
+
+//读取设备IMSI
+u8 ReadDeviceIMSI(void)
+{
+	u8 ret = 0;
+
+	ret = ReadDataFromEepromToHoldBuf(HoldReg,IMSI_ID_ADD, IMSI_ID_LEN);
+
+	if(ret)
+	{
+		GetDeviceIMSI();
+	}
+	else
+	{
+		if(DeviceIMSI == NULL)
+		{
+			DeviceIMSI = (u8 *)mymalloc(sizeof(u8) * IMSI_ID_LEN);
+		}
+
+		memset(DeviceIMSI,0,IMSI_ID_LEN);
+
+		sprintf((char *)DeviceIMSI, "000000000000000");
 	}
 
 	return ret;
@@ -1054,6 +1128,7 @@ void WriteOTAInfo(u8 *hold_reg,u8 reset)
 	}
 
 	*(hold_reg + FIRM_WARE_FLAG_S_ADD) 			= HaveNewFirmWare;
+	*(hold_reg + FIRM_WARE_TYPE_S_ADD) 			= DEVICE_TYPE;
 	*(hold_reg + FIRM_WARE_STORE_ADD_S_ADD) 	= NewFirmWareAdd;
 	*(hold_reg + FIRM_WARE_VER_S_ADD + 0) 		= (u8)((NewFirmWareVer >> 8) & 0x00FF);
 	*(hold_reg + FIRM_WARE_VER_S_ADD + 1) 		= (u8)(NewFirmWareVer & 0x00FF);
@@ -1106,19 +1181,19 @@ u8 ReadRegularTimeGroups(void)
 	u16 read_crc = 0;
 	u16 cal_crc = 0;
 	u8 time_group[1024];
-	u8 read_success_buf_flag[MAX_GROUP_NUM * 2];
+	u8 read_success_buf_flag[MAX_GROUP_NUM];
 
 	memset(time_group,0,1024);
-	memset(read_success_buf_flag,0,MAX_GROUP_NUM * 2);
+	memset(read_success_buf_flag,0,MAX_GROUP_NUM);
 
-	for(i = 0; i < MAX_GROUP_NUM * 2; i ++)
+	for(i = 0; i < MAX_GROUP_NUM; i ++)
 	{
-		for(j = i * 9; j < i * 9 + 9; j ++)
+		for(j = i * TIME_RULE_LEN; j < i * TIME_RULE_LEN + TIME_RULE_LEN; j ++)
 		{
 			time_group[j] = AT24CXX_ReadOneByte(TIME_RULE_ADD + j);
 		}
 
-		cal_crc = CRC16(&time_group[j - 9],7);
+		cal_crc = CRC16(&time_group[j - TIME_RULE_LEN],7);
 		read_crc = (((u16)time_group[j - 2]) << 8) + (u16)time_group[j - 1];
 
 		if(cal_crc == read_crc)
@@ -1127,28 +1202,19 @@ u8 ReadRegularTimeGroups(void)
 		}
 	}
 	
-	for(i = 0; i <= MAX_GROUP_NUM; i += 2)
+	for(i = 0; i < MAX_GROUP_NUM; i ++)
 	{
-		if(read_success_buf_flag[i + 0] == 1 && read_success_buf_flag[i + 1] == 1)
+		if(read_success_buf_flag[i] == 1)
 		{
-			RegularTimeStruct[i / 2].type 		= time_group[(i + 0) * 9 + 0];
+			RegularTimeStruct[i].type 		= time_group[i * TIME_RULE_LEN + 0];
 
-			RegularTimeStruct[i / 2].s_year 	= time_group[(i + 0) * 9 + 1];
-			RegularTimeStruct[i / 2].s_month 	= time_group[(i + 0) * 9 + 2];
-			RegularTimeStruct[i / 2].s_date 	= time_group[(i + 0) * 9 + 3];
-			RegularTimeStruct[i / 2].s_hour 	= time_group[(i + 0) * 9 + 4];
-			RegularTimeStruct[i / 2].s_minute 	= time_group[(i + 0) * 9 + 5];
+			RegularTimeStruct[i].year 		= time_group[i * TIME_RULE_LEN + 1];
+			RegularTimeStruct[i].month 		= time_group[i * TIME_RULE_LEN + 2];
+			RegularTimeStruct[i].date 		= time_group[i * TIME_RULE_LEN + 3];
+			RegularTimeStruct[i].hour 		= time_group[i * TIME_RULE_LEN + 4];
+			RegularTimeStruct[i].minute 	= time_group[i * TIME_RULE_LEN + 5];
 
-			RegularTimeStruct[i / 2].percent 	= time_group[(i + 0) * 9 + 6];
-
-			RegularTimeStruct[i / 2].e_year 	= time_group[(i + 1) * 9 + 1];
-			RegularTimeStruct[i / 2].e_month 	= time_group[(i + 1) * 9 + 2];
-			RegularTimeStruct[i / 2].e_date 	= time_group[(i + 1) * 9 + 3];
-			RegularTimeStruct[i / 2].e_hour 	= time_group[(i + 1) * 9 + 4];
-			RegularTimeStruct[i / 2].e_minute 	= time_group[(i + 1) * 9 + 5];
-
-			RegularTimeStruct[i / 2].s_seconds = RegularTimeStruct[i / 2].s_hour * 3600 + RegularTimeStruct[i / 2].s_minute * 60;
-			RegularTimeStruct[i / 2].e_seconds = RegularTimeStruct[i / 2].e_hour * 3600 + RegularTimeStruct[i / 2].e_minute * 60;
+			RegularTimeStruct[i].percent 	= time_group[i * TIME_RULE_LEN + 6];
 		}
 	}
 
@@ -1164,6 +1230,8 @@ void ReadParametersFromEEPROM(void)
 	ReadDeviceName();
 	ReadDeviceID();
 	ReadDeviceUUID();
+	ReadDeviceICCID();
+	ReadDeviceIMSI();
 	ReadOperators();
 	ReadAPN();
 	ReadServerDomain();

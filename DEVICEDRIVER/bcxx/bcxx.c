@@ -1,25 +1,22 @@
-#include "bcxx.h"
-#include "usart.h"
-#include "common.h"
-#include "delay.h"
-#include <string.h>
+#include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
+#include "delay.h"
+#include "at_cmd.h"
+#include "utils.h"
+#include "stm32f10x_gpio.h"
+#include "stm32f10x_rcc.h"
+#include "bcxx.h"
+#include "fifo.h"
+#include "common.h"
+#include "usart2.h"
 
-CONNECT_STATE_E ConnectState = UNKNOW_ERROR;	//连接状态
-unsigned char net_temp_data_rx_buf[8];
 
-char 			bcxx_rx_cmd_buf[CMD_DATA_BUFFER_SIZE];
-unsigned short  bcxx_rx_cnt;
-pRingBuf     	bcxx_net_buf;
-unsigned short  bcxx_net_data_rx_cnt;
-unsigned short  bcxx_net_data_len;
-unsigned char   bcxx_break_out_wait_cmd;
+
 unsigned char   bcxx_init_ok;
-unsigned int    bcxx_last_time;
-CMD_STATE_E 	bcxx_cmd_state;
-BCXX_MODE_E 	bcxx_mode;
-USART_TypeDef* 	bcxx_USARTx = USART2;
-char   			*bcxx_imei;
+unsigned char	bcxx_busy = 0;
+char *bcxx_imei = NULL;
 
 
 void bcxx_hard_init(void)
@@ -53,425 +50,214 @@ void bcxx_hard_reset(void)
 }
 
 
-void bcxx_init(void)
+u32 ip_SendData(int8_t *buf, uint32_t len)
 {
-	u8 ret = 0;
-	static u8 hard_inited = 0;
-	u8 fail_time = 0;
+     SentData((char *)buf,"OK",100);
+     return len;
+}
 
-	if(hard_inited == 0)
+void netif_rx(uint8_t *buf,uint16_t *read)
+{
+	uint8_t ptr[1024] = {0};
+
+	*read = fifo_get(dl_buf_id,ptr);
+
+	if(*read != 0)
 	{
-		ret = RingBuf_Init(&bcxx_net_buf, NET_DATA_BUFFER_SIZE);
-		if(ret == 0)
+		if(strstr((const char *)ptr, "+NNMI:") != NULL)
 		{
-			return;
+			memcpy(buf,ptr,*read);
 		}
-
-		bcxx_hard_init();
-		
-		hard_inited = 1;
+		else
+		{
+			*read = 0;
+		}
 	}
+}
 
-	RE_HARD_RESET:
+void bcxx_soft_init(void)
+{
+	RE_INIT:
+	
 	bcxx_hard_reset();
 
-	delay_ms(5000);
-
-	bcxx_clear_rx_cmd_buffer();
-	bcxx_available();
-	bcxx_net_data_rx_cnt = 0;
-	bcxx_net_data_len = 0;
-	bcxx_break_out_wait_cmd = 0;
-	bcxx_rx_cnt = 0;
-	bcxx_mode = NET_MODE;
-	bcxx_last_time = GetSysTick1ms();
-
-//	fail_time = 0;
-//	while(!bcxx_set_AT())
-//	{
-//		fail_time ++;
-//		if(fail_time >= 3)
-//		{
-//			goto RE_HARD_RESET;
-//		}
-//	}
-//	delay_ms(100);
-
-	fail_time = 0;
-	while(!bcxx_set_AT_ATE(0))
-	{
-		fail_time ++;
-		if(fail_time >= 3)
-		{
-			goto RE_HARD_RESET;
-		}
-	}
-	delay_ms(100);
-
-	fail_time = 0;
-	while(!bcxx_set_AT_CFUN(0))
-	{
-		fail_time ++;
-		if(fail_time >= 3)
-		{
-			goto RE_HARD_RESET;
-		}
-	}
-	delay_ms(100);
-
-	fail_time = 0;
-	while(!bcxx_set_AT_NBAND(2))
-	{
-		fail_time ++;
-		if(fail_time >= 3)
-		{
-			goto RE_HARD_RESET;
-		}
-	}
-	delay_ms(100);
-
-	fail_time = 0;
-	while(!bcxx_set_AT_NCDP((char *)ServerIP,(char *)ServerPort))
-	{
-		fail_time ++;
-		if(fail_time >= 3)
-		{
-			goto RE_HARD_RESET;
-		}
-	}
-	delay_ms(100);
-
-	fail_time = 0;
-	while(!bcxx_get_AT_CGSN())
-	{
-		fail_time ++;
-		if(fail_time >= 1)
-		{
-			goto RE_HARD_RESET;
-		}
-	}
-	delay_ms(100);
-
-	fail_time = 0;
-	while(!bcxx_set_AT_NRB())
-	{
-		fail_time ++;
-		if(fail_time >= 1)
-		{
-			goto RE_HARD_RESET;
-		}
-	}
-	delay_ms(10000);
-
-	fail_time = 0;
-	while(!bcxx_set_AT_CFUN(1))
-	{
-		fail_time ++;
-		if(fail_time >= 3)
-		{
-			goto RE_HARD_RESET;
-		}
-	}
-	delay_ms(100);
-
-	fail_time = 0;
-	while(!bcxx_set_AT_CEDRXS(0))
-	{
-		fail_time ++;
-		if(fail_time >= 3)
-		{
-			goto RE_HARD_RESET;
-		}
-	}
-	delay_ms(100);
+	nbiot_sleep(8000);
 	
-	fail_time = 0;
-	while(!bcxx_set_AT_CPSMS(0))
-	{
-		fail_time ++;
-		if(fail_time >= 3)
-		{
-			goto RE_HARD_RESET;
-		}
-	}
-	delay_ms(100);
+	if(bcxx_set_NATSPEED(115200) != 1)
+		goto RE_INIT;
 
-	fail_time = 0;
-	while(!bcxx_set_AT_CSCON(0))
-	{
-		fail_time ++;
-		if(fail_time >= 3)
-		{
-			goto RE_HARD_RESET;
-		}
-	}
-	delay_ms(100);
-
-	fail_time = 0;
-	while(!bcxx_set_AT_CEREG(4))
-	{
-		fail_time ++;
-		if(fail_time >= 3)
-		{
-			goto RE_HARD_RESET;
-		}
-	}
-	delay_ms(100);
+	if(bcxx_set_AT_ATE(0) != 1)
+		goto RE_INIT;
 	
-	fail_time = 0;
-	while(!bcxx_set_AT_QREGSWT(1))
-	{
-		fail_time ++;
-		if(fail_time >= 3)
-		{
-			goto RE_HARD_RESET;
-		}
-	}
-	delay_ms(100);
+	if(bcxx_get_AT_CGSN() != 1)
+		goto RE_INIT;
+	
+	if(bcxx_get_AT_NCCID() != 1)
+		goto RE_INIT;
+	
+	if(bcxx_get_AT_CIMI() != 1)
+		goto RE_INIT;
+	
+	if(bcxx_set_AT_CFUN(0) != 1)
+		goto RE_INIT;
+	
+	if(bcxx_set_AT_NBAND(DeviceIMSI) != 1)
+		goto RE_INIT;
+	
+	if(bcxx_set_AT_NCDP((char *)ServerIP,(char *)ServerPort) != 1)
+		goto RE_INIT;
+	
+	if(bcxx_set_AT_CELL_RESELECTION() != 1)
+		goto RE_INIT;
+	
+	if(bcxx_set_AT_NRB() != 1)
+		goto RE_INIT;
+	
+	if(bcxx_set_AT_CFUN(1) != 1)
+		goto RE_INIT;
+	
+	if(bcxx_set_AT_CEDRXS(0) != 1)
+		goto RE_INIT;
+	
+	if(bcxx_set_AT_CPSMS(0) != 1)
+		goto RE_INIT;
+	
+	if(bcxx_set_AT_CSCON(0) != 1)
+		goto RE_INIT;
+	
+	if(bcxx_set_AT_CEREG(4) != 1)
+		goto RE_INIT;
+	
+	if(bcxx_set_AT_QREGSWT(1) != 1)
+		goto RE_INIT;
+	
+	if(bcxx_set_AT_NNMI(1) != 1)
+		goto RE_INIT;
+	
+	if(bcxx_set_AT_CGATT(1) != 1)
+		goto RE_INIT;
+	
+	nbiot_sleep(10000);
 
-	fail_time = 0;
-	while(!bcxx_set_AT_NNMI(1))
-	{
-		fail_time ++;
-		if(fail_time >= 3)
-		{
-			goto RE_HARD_RESET;
-		}
-	}
-	delay_ms(100);
-
-	fail_time = 0;
-	while(!bcxx_set_AT_CGATT(1))
-	{
-		fail_time ++;
-		if(fail_time >= 3)
-		{
-			goto RE_HARD_RESET;
-		}
-	}
-
-	delay_ms(10000);
-}
-
-
-unsigned char bcxx_send_string(USART_TypeDef* USARTx,unsigned char *str, unsigned short len)
-{
-	if(USARTx == USART1)
-	{
-		memcpy(Usart1TxBuf,str,len);
-		Usart1SendLen = len;
-	}
-	else if(USARTx == USART2)
-	{
-		memcpy(Usart2TxBuf,str,len);
-		Usart2SendLen = len;
-	}
-	else if(USARTx == UART4)
-	{
-		memcpy(Usart4TxBuf,str,len);
-		Usart4SendLen = len;
-	}
-	else
-	{
-		return 0;
-	}
-
-	USART_ITConfig(USARTx, USART_IT_TC, ENABLE);
-
-	return 1;
-}
-
-
-
-unsigned short bcxx_read(unsigned char *buf)
-{
-    int i = 0;
-    unsigned short len = bcxx_available();
-    if(len > 0)
-    {
-        for(i = 0; i < len; i++)
-        {
-            buf[i] = bcxx_net_buf->read(&bcxx_net_buf);
-        }
-    }
-    else
-    {
-        len = 0;
-    }
-    return len;
-}
-
-unsigned char bcxx_set_AT_NRB(void)
-{
-	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+NRB\r\n");
-    if(bcxx_wait_cmd2("REBOOTING",TIMEOUT_10S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "REBOOTING") != -1)
-            ret = 1;
-        else
-            ret = 0;
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
-    return ret;
-}
-
-
-//基本AT指令测试
-unsigned char bcxx_set_AT()
-{
-	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT\r\n");
-    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-            ret = 1;
-        else
-            ret = 0;
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
-    return ret;
+	printf("bc35_g init sucess\r\n");
 }
 
 //设置回显功能
 unsigned char bcxx_set_AT_ATE(char cmd)
 {
 	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("ATE%d\r\n", cmd);
-    if(bcxx_wait_cmd2("OK",TIMEOUT_10S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-            ret = 1;
-        else
-            ret = 0;
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
-    return ret;
+    char cmd_tx_buf[64];
 
-}
-
-unsigned char bcxx_set_AT_UART(unsigned int baud_rate)
-{
-	unsigned char ret = 0;
-
+	memset(cmd_tx_buf,0,64);
+	
+	sprintf(cmd_tx_buf,"ATE%d\r\n", cmd);
+	
+    ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_1S);
 
     return ret;
 }
 
-//查询信号强度
-unsigned char bcxx_get_AT_CSQ(void)
+//设定模块波特率
+unsigned char bcxx_set_NATSPEED(u32 baud_rate)
 {
 	unsigned char ret = 0;
-	unsigned short pos = 0;
+    char cmd_tx_buf[64];
 
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+CSQ\r\n");
-    if(bcxx_wait_cmd2("+CSQ:",TIMEOUT_1S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "+CSQ:") != -1)
+	memset(cmd_tx_buf,0,64);
+	
+	sprintf(cmd_tx_buf,"AT+NATSPEED?\r\n");
+
+    ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_1S);
+	
+	if(ret == 1)				//波特率默认9600
+	{
+		memset(cmd_tx_buf,0,64);
+		
+		sprintf(cmd_tx_buf,"AT+NATSPEED=%d,30,1,2,1,0,0\r\n",baud_rate);
+		
+		ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_1S);
+		
+		if(ret == 1)
 		{
-			pos = MyStrstr((u8 *)bcxx_rx_cmd_buf, "+CSQ:", 128, 5);
-			if(pos != 0xFFFF)
-			{
-				if(bcxx_rx_cmd_buf[pos + 6] != ',')
-				{
-					ret = (bcxx_rx_cmd_buf[pos + 5] - 0x30) * 10 +\
-						bcxx_rx_cmd_buf[pos + 6] - 0x30;
-				}
-				else
-				{
-					ret = bcxx_rx_cmd_buf[pos + 5] - 0x30;
-				}
+			USART2_Init(baud_rate);
+			
+			memset(cmd_tx_buf,0,64);
+	
+			sprintf(cmd_tx_buf,"AT+NATSPEED?\r\n");
 
-				if(ret == 0 && ret == 99)
-				{
-					ret = 0;
-				}
-			}
+			ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_1S);
 		}
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+	}
+	else if(ret == 0)
+	{
+		USART2_Init(baud_rate);
+			
+		memset(cmd_tx_buf,0,64);
+
+		sprintf(cmd_tx_buf,"AT+NATSPEED?\r\n");
+
+		ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_1S);
+	}
+
     return ret;
 }
 
-unsigned char bcxx_set_AT_CFUN(unsigned char cmd)
+unsigned char bcxx_set_AT_CFUN(char cmd)
 {
 	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+CFUN=%d\r\n",cmd);
-    if(bcxx_wait_cmd1(TIMEOUT_90S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-            ret = 1;
-        else
-            ret = 0;
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+    char cmd_tx_buf[64];
+
+	memset(cmd_tx_buf,0,64);
+	
+	sprintf(cmd_tx_buf,"AT+CFUN=%d\r\n", cmd);
+	
+    ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_90S);
+
     return ret;
 }
 
 //设置频带
-unsigned char bcxx_set_AT_NBAND(unsigned char operators)
+unsigned char bcxx_set_AT_NBAND(unsigned char *imsi)
 {
 	unsigned char ret = 0;
 	unsigned char band = 8;
+	unsigned char operators_code = 0;
+	char cmd_tx_buf[64];
+
+	memset(cmd_tx_buf,0,64);
 	
-	switch(operators)
+	if(imsi == NULL)
 	{
-		case 0:				//移动
-			band = 8;
-		break;
-		
-		case 1:				//联通
-			band = 8;
-		break;
-		
-		case 2:				//电信
-			band = 5;
-		break;
-		
-		default:
-			band = 8;
-		break;
+		return ret;
 	}
 	
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+NBAND=%d\r\n",band);
-    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-            ret = 1;
-        else
-            ret = 0;
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+	operators_code = (*(imsi + 3) - 0x30) * 10 + *(imsi + 4) - 0x30;
+	
+	if(operators_code == 0 ||
+	   operators_code == 2 ||
+	   operators_code == 4 ||
+	   operators_code == 7 ||
+	   operators_code == 1 ||
+	   operators_code == 6 ||
+	   operators_code == 9)
+	{
+		band = 8;
+	}
+	else if(operators_code == 3 ||
+	        operators_code == 5 ||
+	        operators_code == 11)
+	{
+		band = 5;
+	}
+	else
+	{
+		band = 8;
+	}
+	
+	sprintf(cmd_tx_buf,"AT+NBAND=%d\r\n",band);
+    
+	ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_90S);
+
     return ret;
 }
 
@@ -481,37 +267,102 @@ unsigned char bcxx_get_AT_CGSN(void)
 	unsigned char ret = 0;
 	char buf[32];
 
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-    printf("AT+CGSN=1\r\n");
-    if(bcxx_wait_cmd1(TIMEOUT_1S) == RECEIVED)
+    if(SendCmd("AT+CGSN=1\r\n", "+CGSN", 100,0,TIMEOUT_1S) == 1)
     {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
+		memset(buf,0,32);
+
+		get_str1((unsigned char *)result_ptr->data, "CGSN:", 1, "\r\n", 2, (unsigned char *)buf);
+		
+		if(strlen(buf) == UU_ID_LEN - 4)
 		{
-			memset(buf,0,32);
+			memcpy(&HoldReg[UU_ID_ADD],"00",2);
+			
+			memcpy(&HoldReg[UU_ID_ADD + 2],buf,strlen(buf));
 
-			get_str1((unsigned char *)bcxx_rx_cmd_buf, "CGSN:", 1, "\r\n", 2, (unsigned char *)buf);
+			GetDeviceUUID();
 
-			if(strlen(buf) == 15)
-			{
-				if(bcxx_imei == NULL)
-				{
-					bcxx_imei = (char *)mymalloc(sizeof(char) * 16);
-				}
-				if(bcxx_imei != NULL)
-				{
-					memset(bcxx_imei,0,16);
-					memcpy(bcxx_imei,buf,15);
-
-					ret = 1;
-				}
-			}
+			WriteDataFromHoldBufToEeprom(&HoldReg[UU_ID_ADD],UU_ID_ADD, UU_ID_LEN - 2);
+			
+			ret = 1;
 		}
     }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+
+    return ret;
+}
+
+//获取ICCID
+unsigned char bcxx_get_AT_NCCID(void)
+{
+	unsigned char ret = 0;
+	char buf[32];
+
+    if(SendCmd("AT+NCCID\r\n", "OK", 100,0,TIMEOUT_5S) == 1)
+    {
+		memset(buf,0,32);
+
+		get_str1((unsigned char *)result_ptr->data, "NCCID:", 1, "\r\n", 2, (unsigned char *)buf);
+
+		if(strlen(buf) == ICC_ID_LEN - 2)
+		{
+			memcpy(&HoldReg[ICC_ID_ADD],buf,strlen(buf));
+
+			GetDeviceICCID();
+
+			WriteDataFromHoldBufToEeprom(&HoldReg[ICC_ID_ADD],ICC_ID_ADD, ICC_ID_LEN - 2);
+			
+			ret = 1;
+		}
+    }
+
+    return ret;
+}
+
+//获取IMSI
+unsigned char bcxx_get_AT_CIMI(void)
+{
+	unsigned char ret = 0;
+	char buf[32];
+
+    if(SendCmd("AT+CIMI\r\n", "OK", 100,0,TIMEOUT_1S) == 1)
+    {
+		memset(buf,0,32);
+
+		get_str1((unsigned char *)result_ptr->data, "\r\n", 1, "\r\n", 2, (unsigned char *)buf);
+
+		if(strlen(buf) == IMSI_ID_LEN - 2)
+		{
+			memcpy(&HoldReg[IMSI_ID_ADD],buf,strlen(buf));
+
+			GetDeviceIMSI();
+
+			WriteDataFromHoldBufToEeprom(&HoldReg[IMSI_ID_ADD],IMSI_ID_ADD, IMSI_ID_LEN - 2);
+			
+			ret = 1;
+		}
+    }
+
+    return ret;
+}
+
+//打开小区重选功能
+unsigned char bcxx_set_AT_CELL_RESELECTION(void)
+{
+	unsigned char ret = 0;
+	
+    ret = SendCmd("AT+NCONFIG=CELL_RESELECTION,TRUE\r\n", "OK", 100,0,TIMEOUT_1S);
+
+    return ret;
+}
+
+//重启模块
+unsigned char bcxx_set_AT_NRB(void)
+{
+	unsigned char ret = 0;
+    
+	SendCmd("AT+NRB\r\n", "OK", 1000,0,TIMEOUT_10S);
+	
+	ret = SendCmd("AT\r\n", "OK", 100,0,TIMEOUT_1S);
+	
     return ret;
 }
 
@@ -519,20 +370,14 @@ unsigned char bcxx_get_AT_CGSN(void)
 unsigned char bcxx_set_AT_NCDP(char *addr, char *port)
 {
 	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+NCDP=%s,%s\r\n",addr,port);
-    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-            ret = 1;
-        else
-            ret = 0;
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+    char cmd_tx_buf[64];
+
+	memset(cmd_tx_buf,0,64);
+	
+	sprintf(cmd_tx_buf,"AT+NCDP=%s,%s\r\n",addr,port);
+	
+    ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_1S);
+
     return ret;
 }
 
@@ -540,20 +385,14 @@ unsigned char bcxx_set_AT_NCDP(char *addr, char *port)
 unsigned char bcxx_set_AT_CSCON(unsigned char cmd)
 {
 	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+CSCON=%d\r\n",cmd);
-    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-            ret = 1;
-        else
-            ret = 0;
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+    char cmd_tx_buf[64];
+
+	memset(cmd_tx_buf,0,64);
+	
+	sprintf(cmd_tx_buf,"AT+CSCON=%d\r\n",cmd);
+	
+    ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_1S);
+	
     return ret;
 }
 
@@ -561,81 +400,72 @@ unsigned char bcxx_set_AT_CSCON(unsigned char cmd)
 unsigned char bcxx_set_AT_CEREG(unsigned char cmd)
 {
 	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+CEREG=%d\r\n",cmd);
-    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-            ret = 1;
-        else
-            ret = 0;
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+    char cmd_tx_buf[64];
+
+	memset(cmd_tx_buf,0,64);
+	
+	sprintf(cmd_tx_buf,"AT+CEREG=%d\r\n",cmd);
+	
+    ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_1S);
+	
     return ret;
 }
 
-//设置网络数据接收模式
+//设置网络数据接收模式HUAWEI IOT
 unsigned char bcxx_set_AT_NNMI(unsigned char cmd)
 {
 	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+NNMI=%d\r\n",cmd);
-    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-            ret = 1;
-        else
-            ret = 0;
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+    char cmd_tx_buf[64];
+
+	memset(cmd_tx_buf,0,64);
+	
+	sprintf(cmd_tx_buf,"AT+NNMI=%d\r\n",cmd);
+	
+    ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_1S);
+	
+    return ret;
+}
+
+//设置网络数据接收模式 TCP/IP
+unsigned char bcxx_set_AT_NSONMI(unsigned char cmd)
+{
+	unsigned char ret = 0;
+    char cmd_tx_buf[64];
+
+	memset(cmd_tx_buf,0,64);
+	
+	sprintf(cmd_tx_buf,"AT+NSONMI=%d\r\n",cmd);
+	
+    ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_1S);
+	
     return ret;
 }
 
 unsigned char bcxx_set_AT_CGATT(unsigned char cmd)
 {
 	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+CGATT=%d\r\n",cmd);
-    if(bcxx_wait_cmd2("OK",TIMEOUT_2S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-            ret = 1;
-        else
-            ret = 0;
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+    char cmd_tx_buf[64];
+
+	memset(cmd_tx_buf,0,64);
+	
+	sprintf(cmd_tx_buf,"AT+CGATT=%d\r\n",cmd);
+	
+    ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_2S);
+	
     return ret;
 }
 
 unsigned char bcxx_set_AT_QREGSWT(unsigned char cmd)
 {
 	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+QREGSWT=%d\r\n",cmd);
-    if(bcxx_wait_cmd2("OK",TIMEOUT_2S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-            ret = 1;
-        else
-            ret = 0;
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+    char cmd_tx_buf[64];
+
+	memset(cmd_tx_buf,0,64);
+	
+	sprintf(cmd_tx_buf,"AT+QREGSWT=%d\r\n",cmd);
+	
+    ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_2S);
+	
     return ret;
 }
 
@@ -643,20 +473,14 @@ unsigned char bcxx_set_AT_QREGSWT(unsigned char cmd)
 unsigned char bcxx_set_AT_CEDRXS(unsigned char cmd)
 {
 	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+CEDRXS=%d,5\r\n",cmd);
-    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-            ret = 1;
-        else
-            ret = 0;
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+    char cmd_tx_buf[64];
+
+	memset(cmd_tx_buf,0,64);
+	
+	sprintf(cmd_tx_buf,"AT+CEDRXS=%d,5\r\n",cmd);
+	
+    ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_1S);
+	
     return ret;
 }
 
@@ -664,20 +488,14 @@ unsigned char bcxx_set_AT_CEDRXS(unsigned char cmd)
 unsigned char bcxx_set_AT_CPSMS(unsigned char cmd)
 {
 	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+CPSMS=%d\r\n",cmd);
-    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-            ret = 1;
-        else
-            ret = 0;
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+    char cmd_tx_buf[64];
+
+	memset(cmd_tx_buf,0,64);
+	
+	sprintf(cmd_tx_buf,"AT+CPSMS=%d\r\n",cmd);
+	
+    ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_1S);
+	
     return ret;
 }
 
@@ -685,26 +503,14 @@ unsigned char bcxx_set_AT_CPSMS(unsigned char cmd)
 unsigned char bcxx_set_AT_NMGS(unsigned int len,char *buf)
 {
 	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+NMGS=%d,%s\r\n",len,buf);
-    if(bcxx_wait_cmd1(TIMEOUT_1S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-		{
-			ret = 1;
-		}
-        else
-		{
-			ConnectState = UNKNOW_ERROR;
+    char cmd_tx_buf[256];
+   
+	memset(cmd_tx_buf,0,256);
+	
+	sprintf(cmd_tx_buf,"AT+NMGS=%d,%s\r\n",len,buf);
+	
+    ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_1S);
 
-			ret = 0;
-		}
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
     return ret;
 }
 
@@ -715,83 +521,72 @@ unsigned char bcxx_get_AT_CGPADDR(char **ip)
 	unsigned char len = 0;
 	unsigned char new_len = 0;
 	unsigned char msg[20];
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+CGPADDR\r\n");
-    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
+
+    if(SendCmd("AT+CGPADDR\r\n", ",", 100,20,TIMEOUT_1S) == 1)
     {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
+		memset(msg,0,20);
+
+		get_str1((unsigned char *)result_ptr->data, "+CGPADDR:0,", 1, "\r\nOK", 1, (unsigned char *)msg);
+
+		new_len = strlen((char *)msg);
+
+		if(new_len != 0)
 		{
-			memset(msg,0,20);
-
-			get_str1((unsigned char *)bcxx_rx_cmd_buf, "+CGPADDR:0,", 1, "\r\n", 2, (unsigned char *)msg);
-
-			new_len = strlen((char *)msg);
-
-			if(new_len != 0)
+			if(*ip == NULL)
 			{
-				if(*ip == NULL)
+				*ip = (char *)mymalloc(sizeof(u8) * len + 1);
+			}
+
+			if(*ip != NULL)
+			{
+				len = strlen((char *)*ip);
+
+				if(len == new_len)
 				{
-					*ip = (char *)mymalloc(sizeof(u8) * len + 1);
+					memset(*ip,0,new_len + 1);
+					memcpy(*ip,msg,new_len);
+					ret = 1;
 				}
-
-				if(*ip != NULL)
+				else
 				{
-					len = strlen((char *)*ip);
-
-					if(len == new_len)
+					myfree(*ip);
+					*ip = (char *)mymalloc(sizeof(u8) * new_len + 1);
+					if(ip != NULL)
 					{
 						memset(*ip,0,new_len + 1);
 						memcpy(*ip,msg,new_len);
+						len = new_len;
+						new_len = 0;
 						ret = 1;
-					}
-					else
-					{
-						myfree(*ip);
-						*ip = (char *)mymalloc(sizeof(u8) * new_len + 1);
-						if(ip != NULL)
-						{
-							memset(*ip,0,new_len + 1);
-							memcpy(*ip,msg,new_len);
-							len = new_len;
-							new_len = 0;
-							ret = 1;
-						}
 					}
 				}
 			}
 		}
     }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+
     return ret;
 }
 
 //新建一个SOCKET
-unsigned char bcxx_set_AT_NSCOR(char *type, char *protocol,char *port)
+unsigned char bcxx_set_AT_NSOCR(char *type, char *protocol,char *port)
 {
 	unsigned char ret = 255;
+	char cmd_tx_buf[64];
 	unsigned char buf[3] = {0,0,0};
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+NSOCR=%s,%s,%s,1\r\n",type,protocol,port);
-    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
+   
+	memset(cmd_tx_buf,0,64);
+	
+	sprintf(cmd_tx_buf,"AT+NSOCR=%s,%s,%s,1\r\n",type,protocol,port);
+
+    if(SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_1S) == 1)
     {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
+		get_str1((unsigned char *)result_ptr->data, "\r\n", 1, "\r\n", 2, (unsigned char *)buf);
+		if(strlen((char *)buf) == 1)
 		{
-			get_str1((unsigned char *)bcxx_rx_cmd_buf, "\r\n", 1, "\r\n", 2, (unsigned char *)buf);
-			if(strlen((char *)buf) == 1)
-			{
-				ret = buf[0] - 0x30;
-			}
+			ret = buf[0] - 0x30;
 		}
     }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+
     return ret;
 }
 
@@ -799,52 +594,29 @@ unsigned char bcxx_set_AT_NSCOR(char *type, char *protocol,char *port)
 unsigned char bcxx_set_AT_NSOCL(unsigned char socket)
 {
 	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+NSOCL=%d\r\n",socket);
-    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-		{
-			ret = 1;
-		}
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+	char cmd_tx_buf[64];
+
+	memset(cmd_tx_buf,0,64);
+	
+	sprintf(cmd_tx_buf,"AT+NSOCL=%d\r\n",socket);
+	
+    ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_1S);
+
     return ret;
 }
 
 //向UDP服务器发送数据并等待响应数据
-unsigned char bcxx_set_AT_NSOFT(unsigned char socket, char *ip,char *port,unsigned int len,char *inbuf,char *outbuf)
+unsigned char bcxx_set_AT_NSOFT(unsigned char socket, char *ip,char *port,unsigned int len,char *inbuf)
 {
 	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+NSOST=%d,%s,%s,%d,%s\r\n",socket,ip,port,len,inbuf);
-    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-		{
-			bcxx_clear_rx_cmd_buffer();
-			if(bcxx_wait_cmd2("+NSONMI:",TIMEOUT_15S) == RECEIVED)
-			{
-				bcxx_clear_rx_cmd_buffer();
-				printf("AT+NSORF=%d,%d\r\n",socket,1358);
-				if(bcxx_wait_cmd2("OK",TIMEOUT_2S) == RECEIVED)
-				{
-					get_str1((unsigned char *)bcxx_rx_cmd_buf, ",", 4, ",", 5, (unsigned char *)outbuf);
+    char cmd_tx_buf[256];
 
-					ret = strlen((char *)outbuf);
-				}
-			}
-		}
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+	memset(cmd_tx_buf,0,256);
+	
+	sprintf(cmd_tx_buf,"AT+NSOST=%d,%s,%s,%d,%s\r\n",socket,ip,port,len,inbuf);
+	
+    ret = SendCmd(cmd_tx_buf, "+NSOSTR:", 100,0,TIMEOUT_60S);
+	
     return ret;
 }
 
@@ -852,355 +624,88 @@ unsigned char bcxx_set_AT_NSOFT(unsigned char socket, char *ip,char *port,unsign
 unsigned char bcxx_set_AT_NSOCO(unsigned char socket, char *ip,char *port)
 {
 	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+NSOCO=%d,%s,%s\r\n",socket,ip,port);
-    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-		{
-			ret = 1;
-		}
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+    char cmd_tx_buf[64];
+
+	memset(cmd_tx_buf,0,64);
+	
+	sprintf(cmd_tx_buf,"AT+NSOCO=%d,%s,%s\r\n",socket,ip,port);
+	
+    ret = SendCmd(cmd_tx_buf, "OK", 100,0,TIMEOUT_1S);
+
     return ret;
 }
 
-//通过TCP连接发送数据，并等待响应包
-unsigned char bcxx_set_AT_NSOSD(unsigned char socket, unsigned int len,char *inbuf,char *outbuf)
+//通过TCP连接发送数据
+unsigned char bcxx_set_AT_NSOSD(unsigned char socket, unsigned int len,char *inbuf)
 {
 	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+NSOSD=%d,%d,%s,0x100,100\r\n",socket,len,inbuf);
-    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
-    {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "OK") != -1)
-		{
-			bcxx_clear_rx_cmd_buffer();
-			
-			if(bcxx_wait_cmd2("+NSOSTR:",TIMEOUT_15S) == RECEIVED)
-			{
-				bcxx_clear_rx_cmd_buffer();
-				
-				if(bcxx_wait_cmd2("+NSONMI:",TIMEOUT_15S) == RECEIVED)
-				{
-					bcxx_clear_rx_cmd_buffer();
-					printf("AT+NSORF=%d,%d\r\n",socket,1358);
-					if(bcxx_wait_cmd2("OK",TIMEOUT_2S) == RECEIVED)
-					{
-						get_str1((unsigned char *)bcxx_rx_cmd_buf, ",", 4, ",", 5, (unsigned char *)outbuf);
+	char cmd_tx_buf[512];
 
-						ret = strlen((char *)outbuf);
-					}
-				}
-			}
-		}
-    }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
+	memset(cmd_tx_buf,0,512);
+	
+	sprintf(cmd_tx_buf,"AT+NSOSD=%d,%d,%s,0x100,100\r\n",socket,len,inbuf);
+	
+    ret = SendCmd(cmd_tx_buf, "+NSOSTR:", 100,0,TIMEOUT_60S);
+	
     return ret;
+}
+
+//获取信号强度
+unsigned char bcxx_get_AT_CSQ(void)
+{
+	u8 ret = 0;
+	u8 i = 0;
+	char *msg = NULL;
+	char tmp[10];
+	
+	if(SendCmd("AT+CSQ\r\n", "+CSQ:", 100,0,TIMEOUT_1S) == 1)
+	{
+		msg = strstr((char *)result_ptr->data,":");
+
+		if(msg == NULL)
+			return 0;
+		
+		memset(tmp,0,10);
+		
+		msg = msg + 1;
+		
+		while(*msg != ',')
+		tmp[i ++] = *(msg ++);
+		tmp[i] = '\0';
+		
+		ret = nbiot_atoi(tmp,strlen(tmp));
+		
+		if(ret == 0 && ret == 99)
+		{
+			ret = 0;
+		}
+	}
+	
+	return ret;
 }
 
 //从模块获取时间
 unsigned char bcxx_get_AT_CCLK(char *buf)
 {
 	unsigned char ret = 0;
-    bcxx_wait_mode(CMD_MODE);
-    bcxx_clear_rx_cmd_buffer();
-	printf("AT+CCLK?\r\n");
-    if(bcxx_wait_cmd2("OK",TIMEOUT_1S) == RECEIVED)
+    
+    if(SendCmd("AT+CCLK?\r\n", "OK", 100,0,TIMEOUT_1S) == 1)
     {
-        if(search_str((unsigned char *)bcxx_rx_cmd_buf, "+CCLK:") != -1)
+        if(search_str((unsigned char *)result_ptr->data, "+CCLK:") != -1)
 		{
-			get_str1((unsigned char *)bcxx_rx_cmd_buf, "+CCLK:", 1, "\r\n\r\nOK", 1, (unsigned char *)buf);
+			get_str1((unsigned char *)result_ptr->data, "+CCLK:", 1, "\r\n\r\nOK", 1, (unsigned char *)buf);
 
 			ret = 1;
 		}
     }
-    bcxx_mode = NET_MODE;
-#ifdef BCXX_PRINTF_RX_BUF
-	bcxx_print_rx_buf();
-#endif
-    return ret;
-}
-
-
-//和远端服务器建立单链接
-unsigned char bcxx_set_AT_OPEN(char *type, char *addr, char *port)
-{
-	unsigned char ret = 0;
-
-    return ret;
-}
-
-//关闭和远端服务器的单链接
-unsigned char bcxx_set_AT_CLOSE(void)
-{
-	unsigned char ret = 0;
-
-    return ret;
-}
-
-//在单链接模式下发送数据
-unsigned char bcxx_set_AT_SEND(unsigned char *buffer, unsigned int len)
-{
-	unsigned char ret = 0;
 
     return ret;
 }
 
 
-//清空AT指令接收缓存
-void bcxx_clear_rx_cmd_buffer(void)
-{
-	uint16_t i;
-    for(i = 0; i < CMD_DATA_BUFFER_SIZE; i++)
-    {
-        bcxx_rx_cmd_buf[i] = 0;
-    }
-    bcxx_rx_cnt = 0;
-}
-
-//清空网络数据缓存
-int bcxx_available(void)
-{
-	return bcxx_net_buf->available(&bcxx_net_buf);
-}
-
-void bcxx_print_rx_buf(void)
-{
-	UsartSendString(USART1,(unsigned char *)bcxx_rx_cmd_buf,bcxx_rx_cnt);
-}
-
-void bcxx_print_cmd(CMD_STATE_E cmd)
-{
-
-}
-
-CMD_STATE_E bcxx_wait_cmd1(unsigned int wait_time)
-{
-	unsigned int time = GetSysTick1ms();
-	unsigned int time_now = 0;
-    bcxx_cmd_state = WAITING;
-
-    while(1)
-    {
-		time_now = GetSysTick1ms();
-        if((time_now - time) > wait_time)
-        {
-            bcxx_cmd_state = TIMEOUT;
-            break;
-        }
-
-        if(
-            search_str((unsigned char *)bcxx_rx_cmd_buf, "OK"   ) != -1  || \
-            search_str((unsigned char *)bcxx_rx_cmd_buf, "FAIL" ) != -1  || \
-            search_str((unsigned char *)bcxx_rx_cmd_buf, "ERROR") != -1
-        )
-        {
-            while(GetSysTick1ms() - bcxx_last_time < 20);
-				bcxx_cmd_state = RECEIVED;
-			break;
-        }
-		delay_ms(10);
-    }
-    bcxx_print_cmd(bcxx_cmd_state);
-
-    return bcxx_cmd_state;
-}
-
-CMD_STATE_E bcxx_wait_cmd2(const char *spacial_target, unsigned int wait_time)
-{
-	unsigned int time = GetSysTick1ms();
-	unsigned int time_now = 0;
-	bcxx_cmd_state = WAITING;
-
-    while(1)
-    {
-		time_now = GetSysTick1ms();
-        if((time_now - time) > wait_time)
-        {
-            bcxx_cmd_state = TIMEOUT;
-            break;
-        }
-
-        else if(search_str((unsigned char *)bcxx_rx_cmd_buf, (unsigned char *)spacial_target) != -1)
-        {
-            while(GetSysTick1ms() - bcxx_last_time < 20);
-				bcxx_cmd_state = RECEIVED;
-            break;
-        }
-		else if(bcxx_break_out_wait_cmd == 1)
-		{
-			bcxx_break_out_wait_cmd = 0;
-			break;
-		}
-		delay_ms(10);
-    }
-    bcxx_print_cmd(bcxx_cmd_state);
-
-    return bcxx_cmd_state;
-}
-
-unsigned char bcxx_wait_mode(BCXX_MODE_E mode)
-{
-	unsigned char ret = 0;
-
-	ret = 1;
-	if(GetSysTick1ms() - bcxx_last_time > 20)
-	{
-		bcxx_mode = mode;
-	}
-    else
-    {
-        while(GetSysTick1ms() - bcxx_last_time < 20);
-        bcxx_mode = mode;
-    }
-    return ret;
-}
-
-//从串口获取一个字符
-void bcxx_get_char(void)
-{
-	unsigned char c;
-
-	c = USART_ReceiveData(bcxx_USARTx);
-	bcxx_last_time = GetSysTick1ms();
-
-	if(bcxx_mode == CMD_MODE)
-	{
-		bcxx_rx_cmd_buf[bcxx_rx_cnt] = c;
-		if(bcxx_rx_cnt ++ > CMD_DATA_BUFFER_SIZE)
-		{
-			bcxx_rx_cnt = 0;
-		}
-		bcxx_cmd_state = RECEIVING;
-	}
-	bcxx_net_data_state_process(c);
-}
-
-void bcxx_uart_interrupt_event(void)
-{
-	bcxx_get_char();
-}
 
 
-void bcxx_net_data_state_process(char c)
-{
-	static NET_DATA_STATE_E net_data_state = NEED_I;
 
-	switch((unsigned char)net_data_state)
-	{
-		case (unsigned char)NEED_PLUS:
-			if(c == '+')
-			{
-				net_data_state  = NEED_N1;
-			}
-			else
-			{
-				net_data_state = NEED_PLUS;
-			}
-		break;
-
-		case (unsigned char)NEED_N1:
-			if(c == 'N')
-			{
-				net_data_state = NEED_N2;
-			}
-			else
-			{
-				net_data_state = NEED_PLUS;
-			}
-		break;
-
-		case (unsigned char)NEED_N2:
-			if(c == 'N')
-			{
-				net_data_state = NEED_M;
-			}
-			else
-			{
-				net_data_state = NEED_PLUS;
-			}
-		break;
-
-		case (unsigned char)NEED_M:
-			if(c == 'M')
-			{
-				net_data_state = NEED_I;
-			}
-			else
-			{
-				net_data_state = NEED_PLUS;
-			}
-		break;
-
-		case (unsigned char)NEED_I:
-			if(c == 'I')
-			{
-				net_data_state = NEED_MAO;
-			}
-			else
-			{
-				net_data_state = NEED_PLUS;
-			}
-		break;
-
-		case (unsigned char)NEED_MAO:
-			if(c == ':')
-			{
-				net_data_state = NEED_LEN_DATA;
-			}
-			else
-			{
-				net_data_state = NEED_PLUS;
-			}
-		break;
-
-		case (unsigned char)NEED_LEN_DATA:
-			if(c >= '0' && c <= '9')
-			{
-				net_temp_data_rx_buf[bcxx_net_data_rx_cnt++] = c;
-			}
-			else if(c == ',')
-			{
-				net_temp_data_rx_buf[bcxx_net_data_rx_cnt++] = '\0';
-				bcxx_net_data_len = atoi((const char *)net_temp_data_rx_buf);
-				bcxx_net_data_len *= 2;
-				net_data_state = NEED_USER_DATA;
-				bcxx_net_data_rx_cnt = 0;
-			}
-			else
-			{
-				bcxx_net_data_rx_cnt = 0;
-				net_data_state = NEED_PLUS;
-			}
-		break;
-
-		case (unsigned char)NEED_USER_DATA:
-			if(bcxx_net_data_rx_cnt < bcxx_net_data_len)
-			{
-				bcxx_net_buf->write(&bcxx_net_buf,c);
-				bcxx_net_data_rx_cnt++;
-			}
-			else
-			{
-				bcxx_net_data_rx_cnt = 0;
-				net_data_state = NEED_PLUS;
-			}
-		break;
-		default:
-			net_data_state = NEED_PLUS;
-			bcxx_net_data_rx_cnt = 0;
-		break;
-	}
-}
 
 
 

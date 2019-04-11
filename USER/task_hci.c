@@ -14,7 +14,7 @@ void vTaskHCI(void *pvParameters)
 	
 	AT_CommandInit();
 	
-	UsartSendString(USART1,"READY\r\n", 7);
+	printf("READY\r\n");
 	
 	while(1)
 	{
@@ -38,7 +38,7 @@ void vTaskHCI(void *pvParameters)
 		
 		if(send_len1 != 0)
 		{
-			UsartSendString(USART1,Usart1TxBuf, send_len1);
+			printf("%s",Usart1TxBuf);
 			
 			memset(Usart1TxBuf,0,send_len1);
 			

@@ -351,7 +351,7 @@
               <MiscControls></MiscControls>
               <Define>STM32F10X_HD,USE_STDPERIPH_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>..\CORE;..\DEVICEDRIVER;..\FREERTOS\inc;..\MALLOC;..\JSON;..\FWLIB\inc;..\PROTOCOL;..\SYSTEM\delay;..\SYSTEM\sys;..\USER;..\PERIPHERAL\iic1;..\DEVICEDRIVER\24cxx;..\DEVICEDRIVER\sht2x;..\DEVICEDRIVER\bh1750;..\PERIPHERAL\iic2;..\DEVICEDRIVER\led;..\PERIPHERAL\rtc;..\PERIPHERAL\usart;..\DEVICEDRIVER\bg96;..\NET;..\DEVICEDRIVER\power;..\DEVICEDRIVER\bcxx</IncludePath>
+              <IncludePath>..\CORE;..\DEVICEDRIVER;..\FREERTOS\inc;..\MEMORY;..\JSON;..\FWLIB\inc;..\PROTOCOL;..\SYSTEM\delay;..\SYSTEM\sys;..\USER;..\PERIPHERAL\iic1;..\DEVICEDRIVER\24cxx;..\DEVICEDRIVER\sht2x;..\DEVICEDRIVER\bh1750;..\PERIPHERAL\iic2;..\DEVICEDRIVER\led;..\PERIPHERAL\rtc;..\PERIPHERAL\usart;..\DEVICEDRIVER\bg96;..\PLATFORMS;..\DEVICEDRIVER\power;..\DEVICEDRIVER\bcxx</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -497,6 +497,11 @@
               <FileType>1</FileType>
               <FilePath>..\PERIPHERAL\usart\usart.c</FilePath>
             </File>
+            <File>
+              <FileName>usart2.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\PERIPHERAL\usart\usart2.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -531,6 +536,11 @@
               <FileName>bcxx.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\DEVICEDRIVER\bcxx\bcxx.c</FilePath>
+            </File>
+            <File>
+              <FileName>at_cmd.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\DEVICEDRIVER\bcxx\at_cmd.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -670,22 +680,47 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>MALLOC</GroupName>
+          <GroupName>MEMORY</GroupName>
           <Files>
+            <File>
+              <FileName>fifo.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MEMORY\fifo.c</FilePath>
+            </File>
             <File>
               <FileName>malloc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\MALLOC\malloc.c</FilePath>
+              <FilePath>..\MEMORY\malloc.c</FilePath>
+            </File>
+            <File>
+              <FileName>memb.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MEMORY\memb.c</FilePath>
+            </File>
+            <File>
+              <FileName>ringbuf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MEMORY\ringbuf.c</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
-          <GroupName>NET</GroupName>
+          <GroupName>PLATFORMS</GroupName>
           <Files>
             <File>
-              <FileName>ringbuf.c</FileName>
+              <FileName>memory.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\NET\ringbuf.c</FilePath>
+              <FilePath>..\PLATFORMS\memory.c</FilePath>
+            </File>
+            <File>
+              <FileName>socket.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\PLATFORMS\socket.c</FilePath>
+            </File>
+            <File>
+              <FileName>utils.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\PLATFORMS\utils.c</FilePath>
             </File>
           </Files>
         </Group>
