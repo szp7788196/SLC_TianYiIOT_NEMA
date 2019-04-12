@@ -47,7 +47,7 @@ u8 *DeviceICCID = NULL;				//ICCID
 u8 *DeviceIMSI = NULL;				//IMSI
 
 /***************************网络相关*********************************/
-u8 Operators = 1;					//运营商编号 0:移动 1:联通 2:电信
+u8 Operators = 2;					//运营商编号 0:移动 1:联通 2:电信
 u8 *APName = NULL;					//私有APN，不同客户APN不同
 u8 *ServerDomain = NULL;			//服务器域名
 u8 *ServerIP = NULL;				//服务器IP地址
@@ -60,7 +60,7 @@ u8 PowerINTFC = 0;					//电源控制接口编号 0:0~10V  1:PWM  2:UART
 u8 TimeZone = 8;					//时区偏移量
 
 /***************************其他*****************************/
-u8 LightLevelPercent = 0;			//灯的亮度级别
+u8 LightLevelPercent = 200;			//灯的亮度级别
 u8 NeedToReset = 0;					//复位/重启标志
 u8 GetGPSOK = 0;					//成功获取位置信息和时间标志
 u8 GetTimeOK = 0;					//成功获取时间标志
