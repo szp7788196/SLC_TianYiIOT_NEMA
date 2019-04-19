@@ -273,6 +273,11 @@
           <WinNumber>1</WinNumber>
           <ItemText>ConnectState</ItemText>
         </Ww>
+        <Ww>
+          <count>25</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>SignalIntensity,0x0A</ItemText>
+        </Ww>
       </WatchWindow1>
       <Tracepoint>
         <THDelay>0</THDelay>
@@ -320,10 +325,10 @@
       <FileType>1</FileType>
       <tvExp>0</tvExp>
       <Focus>0</Focus>
-      <ColumnNumber>0</ColumnNumber>
+      <ColumnNumber>9</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>4</TopLine>
-      <CurrentLine>20</CurrentLine>
+      <TopLine>2</TopLine>
+      <CurrentLine>49</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\USER\main.c</PathWithFileName>
       <FilenameWithoutPath>main.c</FilenameWithoutPath>
@@ -336,10 +341,10 @@
       <FileType>1</FileType>
       <tvExp>0</tvExp>
       <Focus>0</Focus>
-      <ColumnNumber>24</ColumnNumber>
+      <ColumnNumber>17</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>29</TopLine>
-      <CurrentLine>63</CurrentLine>
+      <TopLine>333</TopLine>
+      <CurrentLine>356</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\USER\common.c</PathWithFileName>
       <FilenameWithoutPath>common.c</FilenameWithoutPath>
@@ -352,9 +357,9 @@
       <FileType>1</FileType>
       <tvExp>0</tvExp>
       <Focus>0</Focus>
-      <ColumnNumber>10</ColumnNumber>
+      <ColumnNumber>22</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>14</TopLine>
+      <TopLine>18</TopLine>
       <CurrentLine>36</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\USER\rtos_task.c</PathWithFileName>
@@ -418,8 +423,8 @@
       <Focus>0</Focus>
       <ColumnNumber>0</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>26</TopLine>
-      <CurrentLine>55</CurrentLine>
+      <TopLine>63</TopLine>
+      <CurrentLine>74</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\USER\task_net.c</PathWithFileName>
       <FilenameWithoutPath>task_net.c</FilenameWithoutPath>
@@ -434,7 +439,7 @@
       <Focus>0</Focus>
       <ColumnNumber>0</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>212</TopLine>
+      <TopLine>223</TopLine>
       <CurrentLine>250</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\USER\task_main.c</PathWithFileName>
@@ -490,7 +495,7 @@
       <Focus>0</Focus>
       <ColumnNumber>0</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>143</TopLine>
+      <TopLine>145</TopLine>
       <CurrentLine>158</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\CORE\startup_stm32f10x_hd.s</PathWithFileName>
@@ -568,10 +573,10 @@
       <FileType>1</FileType>
       <tvExp>0</tvExp>
       <Focus>0</Focus>
-      <ColumnNumber>11</ColumnNumber>
+      <ColumnNumber>42</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>101</TopLine>
-      <CurrentLine>20</CurrentLine>
+      <TopLine>21</TopLine>
+      <CurrentLine>42</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\PERIPHERAL\iic1\iic1.c</PathWithFileName>
       <FilenameWithoutPath>iic1.c</FilenameWithoutPath>
@@ -584,10 +589,10 @@
       <FileType>1</FileType>
       <tvExp>0</tvExp>
       <Focus>0</Focus>
-      <ColumnNumber>49747188</ColumnNumber>
+      <ColumnNumber>4</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>0</TopLine>
-      <CurrentLine>0</CurrentLine>
+      <TopLine>23</TopLine>
+      <CurrentLine>69</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\PERIPHERAL\iic2\iic2.c</PathWithFileName>
       <FilenameWithoutPath>iic2.c</FilenameWithoutPath>
@@ -632,9 +637,9 @@
       <FileType>1</FileType>
       <tvExp>0</tvExp>
       <Focus>0</Focus>
-      <ColumnNumber>20</ColumnNumber>
+      <ColumnNumber>32</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>80</TopLine>
+      <TopLine>84</TopLine>
       <CurrentLine>106</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\PERIPHERAL\usart\usart2.c</PathWithFileName>
@@ -658,8 +663,8 @@
       <Focus>0</Focus>
       <ColumnNumber>32</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>59</TopLine>
-      <CurrentLine>79</CurrentLine>
+      <TopLine>63</TopLine>
+      <CurrentLine>81</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\DEVICEDRIVER\24cxx\24cxx.c</PathWithFileName>
       <FilenameWithoutPath>24cxx.c</FilenameWithoutPath>
@@ -736,10 +741,10 @@
       <FileType>1</FileType>
       <tvExp>0</tvExp>
       <Focus>0</Focus>
-      <ColumnNumber>1</ColumnNumber>
+      <ColumnNumber>16</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>349</TopLine>
-      <CurrentLine>367</CurrentLine>
+      <TopLine>654</TopLine>
+      <CurrentLine>678</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\DEVICEDRIVER\bcxx\bcxx.c</PathWithFileName>
       <FilenameWithoutPath>bcxx.c</FilenameWithoutPath>
@@ -1154,7 +1159,7 @@
       <Focus>0</Focus>
       <ColumnNumber>0</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>315</TopLine>
+      <TopLine>319</TopLine>
       <CurrentLine>337</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\PROTOCOL\net_protocol.c</PathWithFileName>
@@ -1194,7 +1199,7 @@
       <Focus>0</Focus>
       <ColumnNumber>17</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>2</TopLine>
+      <TopLine>4</TopLine>
       <CurrentLine>5</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\MEMORY\fifo.c</PathWithFileName>
@@ -1210,7 +1215,7 @@
       <Focus>0</Focus>
       <ColumnNumber>27</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>1</TopLine>
+      <TopLine>5</TopLine>
       <CurrentLine>10</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\MEMORY\malloc.c</PathWithFileName>
@@ -1400,10 +1405,10 @@
       <FileType>1</FileType>
       <tvExp>0</tvExp>
       <Focus>0</Focus>
-      <ColumnNumber>0</ColumnNumber>
+      <ColumnNumber>41</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>2709</TopLine>
-      <CurrentLine>2722</CurrentLine>
+      <TopLine>3024</TopLine>
+      <CurrentLine>3037</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\FREERTOS\src\tasks.c</PathWithFileName>
       <FilenameWithoutPath>tasks.c</FilenameWithoutPath>
