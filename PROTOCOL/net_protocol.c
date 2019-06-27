@@ -337,12 +337,12 @@ u16 SetRegularTimeGroups(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 						RegularTimeGroupAdd(TYPE_WEEKDAY,tmp_time);
 					break;
 					
-					case TYPE_WEEKEND:
-						RegularTimeGroupAdd(TYPE_WEEKEND,tmp_time);
+					case TYPE_HOLIDAY_START:
+						RegularTimeGroupAdd(TYPE_HOLIDAY_START,tmp_time);
 					break;
 					
-					case TYPE_HOLIDAY:
-						RegularTimeGroupAdd(TYPE_HOLIDAY,tmp_time);
+					case TYPE_HOLIDAY_END:
+						RegularTimeGroupAdd(TYPE_HOLIDAY_END,tmp_time);
 					break;
 					
 					default:
@@ -352,7 +352,7 @@ u16 SetRegularTimeGroups(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 			}
 			else
 			{
-				RegularTimeGroupSub(group_num);
+				RemoveAllStrategy();
 			}
 			
 			for(i = 0; i < TIME_RULE_LEN; i ++)
@@ -370,6 +370,7 @@ u16 SetRegularTimeGroups(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)
 
 	return out_len;
 }
+
 
 //控制设备的工作模式
 u16 SetDeviceWorkMode(u8 message_id,u16 mid,u8 *buf,u8 len,u8 *outbuf)

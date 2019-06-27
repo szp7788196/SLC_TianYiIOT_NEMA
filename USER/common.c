@@ -9,6 +9,7 @@ u8 TimeGroupNumber = 0;							//时间策略组数
 pRegularTime RegularTimeWeekDay = NULL;			//工作日策略
 pRegularTime RegularTimeWeekEnd = NULL;			//周末策略
 pRegularTime RegularTimeHoliday = NULL;			//节假日策略
+HolodayRange_S HolodayRange;					//节假日起始日期
 
 /****************************互斥量相关******************************/
 SemaphoreHandle_t  xMutex_IIC1 			= NULL;	//IIC总线1的互斥量
@@ -1247,12 +1248,12 @@ u8 ReadRegularTimeGroups(void)
 					RegularTimeGroupAdd(TYPE_WEEKDAY,tmp_time);
 				break;
 
-				case TYPE_WEEKEND:
-					RegularTimeGroupAdd(TYPE_WEEKEND,tmp_time);
+				case TYPE_HOLIDAY_START:
+					RegularTimeGroupAdd(TYPE_HOLIDAY_START,tmp_time);
 				break;
 
-				case TYPE_HOLIDAY:
-					RegularTimeGroupAdd(TYPE_HOLIDAY,tmp_time);
+				case TYPE_HOLIDAY_END:
+					RegularTimeGroupAdd(TYPE_HOLIDAY_END,tmp_time);
 				break;
 
 				default:
@@ -1408,10 +1409,25 @@ u8 RegularTimeGroupAdd(u8 type,pRegularTime group_time)
 			main_time = RegularTimeWeekEnd;
 		break;
 
-		case TYPE_HOLIDAY:
+		case TYPE_HOLIDAY_START:
 			main_time = RegularTimeHoliday;
+			
+			HolodayRange.year_s  = group_time->year;
+			HolodayRange.month_s = group_time->month;
+			HolodayRange.date_s  = group_time->date;
+			HolodayRange.year_e  = group_time->year;
+			HolodayRange.month_e = group_time->month;
+			HolodayRange.date_e  = group_time->date;
 		break;
 
+		case TYPE_HOLIDAY_END:
+			main_time = RegularTimeHoliday;
+			
+			HolodayRange.year_e  = group_time->year;
+			HolodayRange.month_e = group_time->month;
+			HolodayRange.date_e  = group_time->date;
+		break;
+		
 		default:
 
 		break;
@@ -1547,7 +1563,17 @@ u8 RegularTimeGroupSub(u8 number)
 	return ret;
 }
 
-
+void RemoveAllStrategy(void)
+{
+	u16 i = 0;
+	
+	for(i = 0; i < MAX_GROUP_NUM; i ++)
+	{
+		RegularTimeGroupSub(i);
+		
+		AT24CXX_WriteLenByte(TIME_RULE_ADD + TIME_RULE_LEN * i + 7,0x0000,2);
+	}
+}
 
 
 
